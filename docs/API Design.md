@@ -149,6 +149,249 @@ POST    /api/files/delete
 GET     /api/files/task/{id}
 ```
 
+#### List Files
+
+```http
+GET   /api/files/list
+```
+
+Request:
+
+```json
+Authorization: Bearer <access_token>
+{
+  "path": "/Documents",
+  "sort_by": "name | size | created | modified | accessed | type",
+  "sort_order": "asc | desc",
+  "dir_first": true
+}
+```
+
+Note: Sort by "type" option stands for sorting by mime type.
+
+Response:
+
+```json
+{
+  "path": "/Documents",
+  "total": 100,
+  "items": [
+    {
+      "name": "photos",
+      "path": "/Documents/photos",
+      "type": "directory",
+      "size": 0, // In bytes.
+      "mime_type": null,
+      "created_at": "2025-10-25T00:00:00Z",
+      "modified_at": "2025-10-25T00:00:00Z",
+      "accessed_at": "2025-10-25T00:00:00Z"
+    },
+    {
+      "name": "report.pdf",
+      "path": "/Documents/report.pdf",
+      "type": "file",
+      "size": 2048576, // In bytes.
+      "mime_type": "application/pdf",
+      "created_at": "2025-10-25T00:00:00Z",
+      "modified_at": "2025-10-25T00:00:00Z",
+      "accessed_at": "2025-10-25T00:00:00Z"
+    }
+  ]
+}
+```
+
+#### Get File Info
+
+```http
+GET     /api/files/info
+```
+
+Request:
+
+```json
+Authorization: Bearer <access_token>
+{
+  "path": "/Documents/report.pdf"
+}
+```
+
+Response:
+
+```json
+{
+  "name": "report.pdf",
+  "path": "/Documents/report.pdf",
+  "type": "file",
+  "size": 2048576, // In bytes.
+  "mime_type": "application/pdf",
+  "created_at": "2025-10-25T00:00:00Z",
+  "modified_at": "2025-10-25T00:00:00Z",
+  "accessed_at": "2025-10-25T00:00:00Z"
+}
+```
+
+#### Search Files
+
+```http
+GET    /api/files/search
+```
+
+Request:
+
+```json
+Authorization: Bearer <access_token>
+{
+  "keyword": "string",
+  "path": "/Documents",
+  "recursive": true,
+  "type": "file", // Optional: filter by type.
+  "mime_type": "application/pdf", // Optional: filter by MIME type.
+  "sort_by": "name | size | created | modified | accessed | type",
+  "sort_order": "asc | desc",
+  "dir_first": true
+}
+```
+
+Note: Sort by "type" option stands for sorting by mime type.
+
+Response:
+
+```json
+{
+  "path": "/Documents",
+  "total": 100,
+  "items": [
+    {
+      "name": "photos",
+      "path": "/Documents/photos",
+      "type": "directory",
+      "size": 0, // In bytes.
+      "mime_type": null,
+      "created_at": "2025-10-25T00:00:00Z",
+      "modified_at": "2025-10-25T00:00:00Z",
+      "accessed_at": "2025-10-25T00:00:00Z"
+    },
+    {
+      "name": "report.pdf",
+      "path": "/Documents/report.pdf",
+      "type": "file",
+      "size": 2048576, // In bytes.
+      "mime_type": "application/pdf",
+      "created_at": "2025-10-25T00:00:00Z",
+      "modified_at": "2025-10-25T00:00:00Z",
+      "accessed_at": "2025-10-25T00:00:00Z"
+    }
+  ]
+}
+```
+
+#### Create Directory
+
+```http
+POST    /api/files/mkdir
+```
+
+Request:
+
+```json
+Authorization: Bearer <access_token>
+{
+  "path": "/Documents/Repositories/LilyCloud",
+  "parents": false // Whether to create parent directories if missing.
+}
+```
+
+Response:
+
+```json
+{
+  "name": "LilyCloud",
+  "path": "/Documents/Repositories/LilyCloud",
+  "type": "directory",
+  "created_at": "2025-10-25T00:00:00Z",
+  "modified_at": "2025-10-25T00:00:00Z",
+  "accessed_at": "2025-10-25T00:00:00Z"
+}
+```
+
+#### Copy Files
+
+```http
+POST    /api/files/copy
+```
+
+Request:
+
+```json
+Authorization: Bearer <access_token>
+{
+  "src_dir": "/Pictures",
+  "dst_dir": "/Documents",
+  "file_names": ["report.pdf", "presentation.pptx"]
+}
+```
+
+Response:
+
+```json
+{}
+```
+
+#### Move Files
+
+```http
+POST    /api/files/move
+```
+
+Request:
+
+```json
+Authorization: Bearer <access_token>
+{
+  "src_dir": "/Pictures",
+  "dst_dir": "/Documents",
+  "file_names": ["report.pdf", "presentation.pptx"]
+}
+```
+
+Response:
+
+```json
+{}
+```
+
+#### Delete Files
+
+```http
+POST    /api/files/delete
+```
+
+Request:
+
+```json
+Authorization: Bearer <access_token>
+{
+  "dir": "string",
+  "file_names": ["report.pdf", "presentation.pptx"]
+}
+```
+
+Response:
+
+```json
+{}
+```
+
+### File Transfer
+
+```http
+GET     /api/files/download
+```
+
+```http
+PUT     /api/files/upload
+```
+
 ## Administration
 
 ### User Management
@@ -185,6 +428,41 @@ GET     /api/admin/storage/search
 DELETE  /api/admin/tasks/{id}
 PATCH   /api/admin/tasks/{id}
 ```
+
+## Database Design
+
+### Users Table
+
+Table name: `users`
+
+| Column            | Type         | Description               |
+| ----------------- | ------------ | ------------------------- |
+| `user_id`         | `INTEGER`    | Primary key               |
+| `username`        | `VARCHAR`    | Unique username           |
+| `hashed_password` | `VARCHAR`    | Hashed password           |
+| `created_at`      | `TIMESTAMP`  | Timestamp of creation     |
+| `updated_at`      | `TIMESTAMP`  | Timestamp of last update  |
+
+### Tasks Table
+
+* Table name: `tasks`
+* Description: Stores file operation task records.
+
+| Column        | Type             | Description                                           |
+| ------------- | ---------------- | ----------------------------------------------------- |
+| `task_id`     | `INTEGER`        | Primary key                                           |
+| `user_id`     | `INTEGER`        | Foreign key referencing `users`                       |
+| `type`        | `ENUM`           | Task type (copy, move, delete)                        |
+| `src_path`    | `TEXT`           | Source path                                           |
+| `dst_path`    | `TEXT`           | Destination path (for copy/move)                      |
+| `file_names`  | `JSON`           | List of file names involved                           |
+| `status`      | `ENUM`           | Task status (pending, running, completed, failed)     |
+| `progress`    | `FLOAT`          | Progress percentage (0.00 - 100.00)                   |
+| `message`     | `TEXT`           | Additional information or error messages              |
+| `created_at`  | `TIMESTAMP`      | Timestamp when the task was created                   |
+| `started_at`  | `TIMESTAMP`      | Timestamp when the task started                       |
+| `completed_at`| `TIMESTAMP`      | Timestamp when the task completed                     |
+| `updated_at`  | `TIMESTAMP`      | Timestamp when the task was last updated              |
 
 ## References
 
