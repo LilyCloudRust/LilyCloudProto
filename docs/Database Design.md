@@ -32,14 +32,15 @@
 
 - Table name: `tasks`
 - Description: Stores file operation task records.
+- Notes: This table violates the first normal form (1NF) because it contains JSON array fields (`dst_dirs` and `file_names`), whether to split them into separate tables should be considered more carefully.
 
 | Column         | Type        | Description                                                |
 | -------------- | ----------- | ---------------------------------------------------------- |
 | `task_id`      | `INTEGER`   | Primary key                                                |
 | `user_id`      | `INTEGER`   | User who issued the task (Foreign key referencing `users`) |
-| `type`         | `ENUM`      | Task type (copy, move, trash, delete)                      |
-| `src_path`     | `TEXT`      | Source path                                                |
-| `dst_path`     | `TEXT`      | Destination path (for copy/move)                           |
+| `type`         | `ENUM`      | Task type (copy, move, trash, restore, delete)             |
+| `src_dir`      | `TEXT`      | Parent directory of the source files                       |
+| `dst_dirs`\*   | `JSON`      | Destination directories                                    |
 | `file_names`   | `JSON`      | List of file names involved                                |
 | `status`       | `ENUM`      | Task status (pending, running, completed, failed)          |
 | `progress`     | `FLOAT`     | Progress percentage (0.00 - 100.00)                        |
@@ -48,6 +49,8 @@
 | `started_at`   | `TIMESTAMP` | Timestamp when the task started                            |
 | `completed_at` | `TIMESTAMP` | Timestamp when the task completed                          |
 | `updated_at`   | `TIMESTAMP` | Timestamp when the task was last updated                   |
+
+\* : `dst_dirs` is a JSON array because when restoring files from trash, there could be multiple destination directories.
 
 ## Trash Information Table
 
