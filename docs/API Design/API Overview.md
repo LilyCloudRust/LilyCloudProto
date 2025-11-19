@@ -23,9 +23,9 @@ GET     /api/auth/whoami
 ### File Operations
 
 ```http
-GET     /api/files
-GET     /api/files
-GET     /api/files
+GET     /api/files/list
+GET     /api/files/info
+GET     /api/files/search
 POST    /api/files/directory
 POST    /api/files/copy
 POST    /api/files/move
@@ -45,19 +45,16 @@ GET     /api/files/archive/{task_id}
 
 ```http
 POST    /api/files/trash
-GET     /api/files/trash/{id}
-GET     /api/files/trash
+GET     /api/files/trash/{trash_id}
 GET     /api/files/trash
 POST    /api/files/trash/restore
-DELETE  /api/files/trash/{id}
-DELETE  /api/files/trash
 DELETE  /api/files/trash
 ```
 
 ### File Operations Status
 
 ```http
-GET     /api/files/tasks/{id}
+GET     /api/files/tasks/{task_id}
 ```
 
 ## Administration
@@ -66,32 +63,28 @@ GET     /api/files/tasks/{id}
 
 ```http
 POST    /api/admin/users
-GET     /api/admin/users/{id}
+GET     /api/admin/users/{user_id}
 GET     /api/admin/users
-GET     /api/admin/users
-PATCH   /api/admin/users/{id}
-DELETE  /api/admin/users/{id}
+PATCH   /api/admin/users/{user_id}
+DELETE  /api/admin/users/{user_id}
 ```
 
 ### Storage Management
 
 ```http
 POST    /api/admin/storages
-GET     /api/admin/storages/{id}
+GET     /api/admin/storages/{storage_id}
 GET     /api/admin/storages
-GET     /api/admin/storages
-PATCH   /api/admin/storages/{id}
-DELETE  /api/admin/storages/{id}
+PATCH   /api/admin/storages/{storage_id}
+DELETE  /api/admin/storages/{storage_id}
 ```
 
 ### Task Management
 
 ```http
 GET     /api/admin/tasks
-GET     /api/admin/tasks
-GET     /api/admin/tasks
-DELETE  /api/admin/tasks/{id}
-PATCH   /api/admin/tasks/{id}
+PATCH   /api/admin/tasks/{task_id}
+DELETE  /api/admin/tasks/{task_id}
 ```
 
 ## References

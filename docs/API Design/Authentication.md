@@ -71,7 +71,7 @@ Response:
 
 ```json
 {
-  "user_id": 1
+  "user_id": 1,
   "username": "string",
   "created_at": "2025-10-25T00:00:00Z",
   "updated_at": "2025-10-25T00:00:00Z"
@@ -117,7 +117,7 @@ Response:
 
 ```json
 {
-  "user_id": 1
+  "user_id": 1,
   "username": "string",
   "created_at": "2025-10-25T00:00:00Z",
   "updated_at": "2025-10-25T00:00:00Z"
