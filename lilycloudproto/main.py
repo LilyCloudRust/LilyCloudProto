@@ -42,7 +42,7 @@ def root() -> HTMLResponse:
         </style>
       </head>
       <body>
-        <h1>LilyCloud Cloud Prototype API</h1>
+        <h1>Lily Cloud Prototype API</h1>
         <p>Quick links:</p>
         <ul>
           <li><a href="/scalar" target="_blank">Scalar API Client (/scalar)</a></li>

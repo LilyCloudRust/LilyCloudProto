@@ -20,7 +20,7 @@ class UserRepository:
         return user
 
     async def get_by_id(self, user_id: int) -> User | None:
-        """Retrieve a user by their ID. Raises NotFoundError if not found."""
+        """Retrieve a user by their ID. Returns None if not found."""
         result = await self.db.execute(select(User).where(User.user_id == user_id))
         return result.scalar_one_or_none()
 
