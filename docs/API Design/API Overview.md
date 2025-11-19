@@ -35,8 +35,10 @@ DELETE  /api/files
 ### File Transfer
 
 ```http
-POST    /api/files
-GET     /api/files/download
+POST    /api/files/upload
+GET     /api/files
+POST    /api/files/download
+GET     /api/files/archive/{task_id}
 ```
 
 ### Trash Management

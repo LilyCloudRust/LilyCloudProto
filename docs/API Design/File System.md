@@ -292,8 +292,128 @@ Response:
 ## File Transfer
 
 ```http
+POST    /api/files/upload
 GET     /api/files
-PUT     /api/files/upload
+POST    /api/files/download
+GET     /api/files/archive/{task_id}
+```
+
+### Batch Upload
+
+```http
+POST    /api/files/upload
+```
+
+Request:
+
+```json
+Authorization: Bearer <access_token>
+Content-Type: multipart/form-data; boundary=...
+{
+  "dir": "Documents",
+}
+```
+
+Response:
+
+```json
+{
+  "task_id": 1,
+  "user_id": 1,
+  "type": "upload",
+  "src_dir": null,
+  "dst_dirs": ["/Documents"],
+  "file_names": ["report.pdf", "presentation.pptx"],
+  "status": "pending",
+  "progress": 0.0,
+  "message": "",
+  "created_at": "2025-10-25T00:00:00Z",
+  "started_at": null,
+  "completed_at": null,
+  "updated_at": "2025-10-25T00:00:00Z"
+}
+```
+
+### Single File Download
+
+```
+GET     /api/files
+```
+
+Request:
+
+```json
+Authorization: Bearer <access_token>
+{
+  "path": "string"
+}
+```
+
+Response:
+
+```json
+Content-Type: application/pdf
+Content-Disposition: attachment; filename="report.pdf"
+(binary file data)
+```
+
+### Batch Download As Archive
+
+```http
+POST    /api/files/download
+```
+
+Request:
+
+```json
+Authorization: Bearer <access_token>
+{
+  "dir": "string",
+  "file_names": ["report.pdf", "presentation.pptx"],
+}
+```
+
+Response:
+
+```json
+{
+  "task_id": 1,
+  "user_id": 1,
+  "type": "download",
+  "src_dir": "/Pictures",
+  "dst_dirs": [],
+  "file_names": ["report.pdf", "presentation.pptx"],
+  "status": "pending",
+  "progress": 0.0,
+  "message": "",
+  "created_at": "2025-10-25T00:00:00Z",
+  "started_at": null,
+  "completed_at": null,
+  "updated_at": "2025-10-25T00:00:00Z"
+}
+```
+
+### Download Archive
+
+```http
+GET     /api/files/download/{task_id}
+```
+
+Request:
+
+```json
+Authorization: Bearer <access_token>
+{
+  "name": "download"
+}
+```
+
+Response:
+
+```json
+Content-Type: application/zip
+Content-Disposition: attachment; filename="download.zip"
+(binary file data)
 ```
 
 ## Trash Management
