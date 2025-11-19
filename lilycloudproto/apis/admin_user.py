@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Query, status
-from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from lilycloudproto.database import get_db
@@ -17,31 +17,30 @@ async def create_user(
     db: AsyncSession = Depends(get_db),
 ) -> UserResponse:
     repo = UserRepository(db)
-    # Check for duplicate username.
-    statement = select(User).where(User.username == data.username)
-    result = await db.execute(statement)
-    if result.scalar_one_or_none():
-        raise ConflictError(f"Username '{data.username}' already exists.")
     user = User(username=data.username, hashed_password=data.password)
-    created = await repo.create(user)
+    # Check for duplicate username.
+    try:
+        created = await repo.create(user)
+    except IntegrityError as error:
+        raise ConflictError(f"Username '{data.username}' already exists.") from error
     return UserResponse.model_validate(created)
 
 
-@router.get("/{id}", response_model=UserResponse)
+@router.get("/{user_id}", response_model=UserResponse)
 async def get_user(
-    id: int,
+    user_id: int,
     db: AsyncSession = Depends(get_db),
 ) -> UserResponse:
     repo = UserRepository(db)
-    user = await repo.get_by_id(id)
+    user = await repo.get_by_id(user_id)
     if not user:
-        raise NotFoundError(f"User with ID '{id}' not found.")
+        raise NotFoundError(f"User with ID '{user_id}' not found.")
     return UserResponse.model_validate(user)
 
 
 @router.get("", response_model=list[UserResponse])
 async def list_users(
-    keyword: str = Query(None, min_length=1),
+    keyword: str | None = Query(None, min_length=1),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
@@ -54,36 +53,35 @@ async def list_users(
     return [UserResponse.model_validate(user) for user in users]
 
 
-@router.patch("/{id}", response_model=UserResponse)
+@router.patch("/{user_id}", response_model=UserResponse)
 async def update_user(
-    id: int,
+    user_id: int,
     data: UserUpdate,
     db: AsyncSession = Depends(get_db),
 ) -> UserResponse:
     repo = UserRepository(db)
-    user = await repo.get_by_id(id)
+    user = await repo.get_by_id(user_id)
     if not user:
-        raise NotFoundError(f"User with ID '{id}' not found.")
+        raise NotFoundError(f"User with ID '{user_id}' not found.")
     if data.username is not None:
-        # Check for duplicate username.
-        statement = select(User).where(User.username == data.username)
-        result = await db.execute(statement)
-        if result.scalar_one_or_none():
-            raise ConflictError(f"Username '{data.username}' already exists.")
         user.username = data.username
     if data.password is not None:
         user.hashed_password = data.password
-    updated = await repo.update(user)
+    # Check for duplicate username.
+    try:
+        updated = await repo.update(user)
+    except IntegrityError as error:
+        raise ConflictError(f"Username '{data.username}' already exists.") from error
     return UserResponse.model_validate(updated)
 
 
-@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
-    id: int,
+    user_id: int,
     db: AsyncSession = Depends(get_db),
 ) -> None:
     repo = UserRepository(db)
-    user = await repo.get_by_id(id)
+    user = await repo.get_by_id(user_id)
     if not user:
-        raise NotFoundError(f"User with ID '{id}' not found.")
+        raise NotFoundError(f"User with ID '{user_id}' not found.")
     await repo.delete(user)
