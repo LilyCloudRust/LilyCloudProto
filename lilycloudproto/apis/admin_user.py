@@ -27,29 +27,6 @@ async def create_user(
     return UserResponse.model_validate(created)
 
 
-@router.get("", response_model=list[UserResponse])
-async def list_users(
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
-    db: AsyncSession = Depends(get_db),
-) -> list[UserResponse]:
-    repo = UserRepository(db)
-    users = await repo.get_all(page=page, page_size=page_size)
-    return [UserResponse.model_validate(user) for user in users]
-
-
-@router.get("/search", response_model=list[UserResponse])
-async def search_users(
-    keyword: str = Query(None, min_length=1),
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
-    db: AsyncSession = Depends(get_db),
-) -> list[UserResponse]:
-    repo = UserRepository(db)
-    users = await repo.search(keyword=keyword, page=page, page_size=page_size)
-    return [UserResponse.model_validate(user) for user in users]
-
-
 @router.get("/{id}", response_model=UserResponse)
 async def get_user(
     id: int,
@@ -62,7 +39,22 @@ async def get_user(
     return UserResponse.model_validate(user)
 
 
-@router.put("/{id}", response_model=UserResponse)
+@router.get("", response_model=list[UserResponse])
+async def list_users(
+    keyword: str = Query(None, min_length=1),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+) -> list[UserResponse]:
+    repo = UserRepository(db)
+    if keyword is None:
+        users = await repo.get_all(page=page, page_size=page_size)
+    else:
+        users = await repo.search(keyword=keyword, page=page, page_size=page_size)
+    return [UserResponse.model_validate(user) for user in users]
+
+
+@router.patch("/{id}", response_model=UserResponse)
 async def update_user(
     id: int,
     data: UserUpdate,
