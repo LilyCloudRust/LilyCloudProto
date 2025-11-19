@@ -158,7 +158,7 @@ async def get_user_by_id(
     db: AsyncSession = Depends(get_db),
 ) -> Optional[UserResponse]:
     """Get user by ID from database."""
-    # Implementation
+    # Implementation.
     pass
 ```
 
@@ -181,7 +181,7 @@ async def create_user(data: UserCreate, db: AsyncSession) -> UserResponse:
         ConflictError: If username already exists
         ValidationError: If data is invalid
     """
-    # Implementation
+    # Implementation.
     pass
 ```
 
@@ -192,13 +192,13 @@ Use custom exceptions from `error.py`:
 ```python
 from lilycloudproto.error import ConflictError, NotFoundError, ValidationError
 
-# Check for duplicate
+# Check for duplicate.
 if existing_user:
-    raise ConflictError(f"Username '{username}' already exists")
+    raise ConflictError(f"Username '{username}' already exists.")
 
-# Check if resource exists
+# Check if resource exists.
 if not user:
-    raise NotFoundError(f"User with ID '{user_id}' not found")
+    raise NotFoundError(f"User with ID '{user_id}' not found.")
 ```
 
-Note: Error messages should NOT end with a period.
+Note: Error messages and comments should end with a period.
