@@ -3,17 +3,17 @@ fail_fast: false
 
 repos:
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.9.5
+    rev: 0.9.10
     hooks:
       - id: uv-lock
 
   - repo: https://github.com/psf/black
-    rev: 25.9.0
+    rev: 25.11.0
     hooks:
       - id: black
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.2
+    rev: v0.14.5
     hooks:
       - id: ruff-check
 
