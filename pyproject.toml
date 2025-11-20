@@ -12,16 +12,16 @@ authors = [
     { name = "apple-37", email = "1833346463@qq.com" },
 ]
 dependencies = [
-    "aiosqlite",
-    "fastapi",
-    "scalar_fastapi",
-    "uvicorn",
-    "sqlalchemy",
+    "aiosqlite>=0.21.0",
+    "fastapi>=0.119.1",
+    "scalar_fastapi>=1.4.3",
+    "uvicorn>=0.38.0",
+    "sqlalchemy>=2.0.44",
 ]
 requires-python = ">=3.13"
 
 [project.optional-dependencies]
-dev = ["pre-commit", "black", "ruff", "mypy"]
+dev = ["pre-commit>=4.3.0", "black>=25.9.0", "ruff>=0.14.1", "mypy>=1.18.2"]
 
 [tool.pyright]
 venvPath = "."
