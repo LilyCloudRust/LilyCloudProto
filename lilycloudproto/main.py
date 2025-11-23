@@ -7,6 +7,8 @@ from scalar_fastapi import (
     get_scalar_api_reference,  # pyright: ignore[reportUnknownVariableType]
 )
 
+from lilycloudproto.apis.admin_storage import router as admin_storage_router
+from lilycloudproto.apis.admin_task import router as admin_task_router
 from lilycloudproto.apis.admin_user import router as admin_user_router
 from lilycloudproto.database import init_db
 from lilycloudproto.error import TeapotError, register_error_handlers
@@ -25,6 +27,8 @@ register_error_handlers(app)
 
 # Include routers.
 app.include_router(admin_user_router)
+app.include_router(admin_storage_router)
+app.include_router(admin_task_router)
 
 
 @app.get("/", response_class=HTMLResponse)
