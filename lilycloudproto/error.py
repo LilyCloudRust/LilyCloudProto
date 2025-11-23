@@ -9,6 +9,12 @@ class BadRequestError(Exception):
     pass
 
 
+class AuthenticationError(Exception):
+    """Raised when authentication fails (401)."""
+
+    pass
+
+
 class NotFoundError(Exception):
     """Raised when a resource is not found."""
 
@@ -64,3 +70,14 @@ def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(TeapotError)
     async def teapot_handler(_request: Request, exception: TeapotError) -> None:
         raise HTTPException(status_code=418, detail=str(exception))
+
+    # --- 新增的部分: AuthenticationError Handler ---
+    @app.exception_handler(AuthenticationError)
+    async def authentication_handler(
+        _request: Request, exception: AuthenticationError
+    ) -> None:
+        raise HTTPException(
+            status_code=401,
+            detail=str(exception),
+            headers={"WWW-Authenticate": "Bearer"},
+        )
