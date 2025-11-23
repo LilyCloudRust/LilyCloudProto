@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,6 +9,7 @@ from lilycloudproto.infra.user_repository import UserRepository
 from lilycloudproto.models.user import (
     UserCreate,
     UserListResponse,
+    UserQueryParams,
     UserResponse,
     UserUpdate,
 )
@@ -47,18 +48,18 @@ async def get_user(
 
 @router.get("", response_model=UserListResponse)
 async def list_users(
-    keyword: str | None = Query(None, min_length=1),
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    params: UserQueryParams = Depends(),
     db: AsyncSession = Depends(get_db),
 ) -> UserListResponse:
     """List all users with pagination and optional keyword search."""
     repo = UserRepository(db)
-    if keyword is None:
-        users, total_count = await repo.get_all(page=page, page_size=page_size)
+    if params.keyword is None:
+        users, total_count = await repo.get_all(
+            page=params.page, page_size=params.page_size
+        )
     else:
         users, total_count = await repo.search(
-            keyword=keyword, page=page, page_size=page_size
+            keyword=params.keyword, page=params.page, page_size=params.page_size
         )
     return UserListResponse(
         items=[UserResponse.model_validate(user) for user in users],

@@ -3,33 +3,18 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from lilycloudproto.database import get_db
-from lilycloudproto.entities.storage import Storage, StorageType
+from lilycloudproto.entities.storage import Storage
 from lilycloudproto.error import ConflictError, NotFoundError
 from lilycloudproto.infra.storage_repository import StorageRepository
 from lilycloudproto.models.storage import (
     StorageCreate,
     StorageListResponse,
+    StorageQueryParams,
     StorageResponse,
     StorageUpdate,
 )
 
 router = APIRouter(prefix="/api/admin/storages", tags=["Admin"])
-
-
-class StorageQueryParams:
-    def __init__(
-        self,
-        keyword: str | None = None,
-        type: StorageType | None = None,
-        enabled_first: bool = False,
-        page: int = 1,
-        page_size: int = 20,
-    ):
-        self.keyword = keyword
-        self.type = type
-        self.enabled_first = enabled_first
-        self.page = page
-        self.page_size = page_size
 
 
 @router.post("", response_model=StorageResponse, status_code=status.HTTP_201_CREATED)

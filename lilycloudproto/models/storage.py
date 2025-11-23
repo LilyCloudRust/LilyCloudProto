@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Any
 
+from fastapi import Query
 from pydantic import BaseModel, ConfigDict
 
 from lilycloudproto.entities.storage import StorageType
@@ -35,3 +36,19 @@ class StorageResponse(StorageBase):
 class StorageListResponse(BaseModel):
     items: list[StorageResponse]
     total_count: int
+
+
+class StorageQueryParams:
+    def __init__(
+        self,
+        keyword: str | None = Query(None),
+        type: StorageType | None = Query(None),
+        enabled_first: bool = Query(False),
+        page: int = Query(1, ge=1),
+        page_size: int = Query(20, ge=1, le=100),
+    ):
+        self.keyword = keyword
+        self.type = type
+        self.enabled_first = enabled_first
+        self.page = page
+        self.page_size = page_size
