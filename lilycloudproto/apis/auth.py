@@ -9,7 +9,9 @@ router = APIRouter(prefix="/api/auth", tags=["Auth"])
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(payload: LoginRequest, db: AsyncSession = Depends(get_db)):
+async def login(
+    payload: LoginRequest, db: AsyncSession = Depends(get_db)
+) -> TokenResponse:
     repo = AuthRepository(db)
     token = await repo.authenticate(payload.username, payload.password)
     if not token:
