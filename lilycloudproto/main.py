@@ -11,6 +11,7 @@ from lilycloudproto.apis.admin_storage import router as admin_storage_router
 from lilycloudproto.apis.admin_task import router as admin_task_router
 from lilycloudproto.apis.admin_user import router as admin_user_router
 from lilycloudproto.apis.files import router as files_router
+from lilycloudproto.apis.auth import router as auth_router
 from lilycloudproto.database import init_db
 from lilycloudproto.error import TeapotError, register_error_handlers
 
@@ -31,6 +32,7 @@ app.include_router(admin_user_router)
 app.include_router(admin_storage_router)
 app.include_router(admin_task_router)
 app.include_router(files_router)
+app.include_router(auth_router)
 
 
 @app.get("/", response_class=HTMLResponse)
