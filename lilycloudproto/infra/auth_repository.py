@@ -20,12 +20,6 @@ class AuthRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
     def verify_password(self, pwd: str, hashed_pwd: str) -> bool:
-        """
-        校验密码
-        :param pwd: 用户输入的明文密码
-        :param hashed_pwd: 数据库中的哈希密码
-        """
-
         return pwd_context.verify(pwd, hashed_pwd)
 
     def generate_token(self, data: dict, minutes: int | None = None) -> str:
