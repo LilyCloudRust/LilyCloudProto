@@ -21,10 +21,11 @@ repos:
     rev: v1.18.2
     hooks:
       - id: mypy
-        additional_dependencies: 
+        additional_dependencies:
           - "aiosqlite"
           - "fastapi"
           - "scalar_fastapi"
           - "uvicorn"
           - "sqlalchemy"
+          - "python-magic"
         args: ["--strict"]
