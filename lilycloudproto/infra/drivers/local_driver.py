@@ -1,3 +1,4 @@
+import mimetypes
 import os
 from collections.abc import Callable, Generator
 from datetime import datetime
@@ -17,6 +18,8 @@ class LocalDriver(Driver):
     @override
     def list_dir(self, args: ListArgs) -> list[File]:
         files: list[File] = []
+        if not os.path.exists(args.path):
+            raise NotFoundError(f"Directory not found at '{args.path}'.")
         for entry in os.scandir(args.path):
             files.append(self._entry_to_file(entry))
         return self._sort_files(files, args)
@@ -48,6 +51,9 @@ class LocalDriver(Driver):
         return self._sort_files(result, args)
 
     def _get_mime_type(self, path: str) -> str:
+        mime_type, _ = mimetypes.guess_type(path)
+        if mime_type:
+            return mime_type
         if os.path.isfile(path):
             return magic.from_file(  # pyright: ignore[reportUnknownMemberType]
                 path, mime=True
@@ -58,10 +64,10 @@ class LocalDriver(Driver):
         if args.type:
             return entry.is_file() if args.type == "file" else entry.is_dir()
         if args.keyword:
-            return args.keyword in entry.name
+            return args.keyword.lower() in entry.name.lower()
         if args.mime_type:
             mime_type = self._get_mime_type(entry.path)
-            return mime_type == args.mime_type
+            return args.mime_type.lower() in mime_type.lower()
         return True
 
     def _entry_to_file(self, entry: os.DirEntry[str]) -> File:
