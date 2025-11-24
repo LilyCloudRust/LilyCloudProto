@@ -43,8 +43,8 @@ Response:
       "name": "photos",
       "path": "/Documents/photos",
       "type": "directory",
-      "size": 0, // In bytes.
-      "mime_type": null,
+      "size": 4096, // In bytes.
+      "mime_type": "inode/directory",
       "created_at": "2025-10-25T00:00:00Z",
       "modified_at": "2025-10-25T00:00:00Z",
       "accessed_at": "2025-10-25T00:00:00Z"
@@ -128,8 +128,8 @@ Response:
       "name": "photos",
       "path": "/Documents/photos",
       "type": "directory",
-      "size": 0, // In bytes.
-      "mime_type": null,
+      "size": 4096, // In bytes.
+      "mime_type": "inode/directory",
       "created_at": "2025-10-25T00:00:00Z",
       "modified_at": "2025-10-25T00:00:00Z",
       "accessed_at": "2025-10-25T00:00:00Z"
@@ -522,8 +522,8 @@ Response
       "name": "photos",
       "path": "/Documents/photos",
       "type": "directory",
-      "size": 0, // In bytes.
-      "mime_type": null,
+      "size": 4096, // In bytes.
+      "mime_type": "inode/directory",
       "created_at": "2025-10-25T00:00:00Z",
       "modified_at": "2025-10-25T00:00:00Z",
       "accessed_at": "2025-10-25T00:00:00Z"
@@ -598,10 +598,10 @@ Authorization: Bearer <access_token>
 
 Note:
 
-- Pass "empty": true to empty the entire trash.
-- Pass "trash_ids" to delete specific trash entries permanently.
-- Pass "dir" and "file_names" to delete files in subdirectories of the trash entries.
-- If more than one option is provided, the API will return an error.
+* Pass "empty": true to empty the entire trash.
+* Pass "trash_ids" to delete specific trash entries permanently.
+* Pass "dir" and "file_names" to delete files in subdirectories of the trash entries.
+* If more than one option is provided, the API will return an error.
 
 Response:
 
