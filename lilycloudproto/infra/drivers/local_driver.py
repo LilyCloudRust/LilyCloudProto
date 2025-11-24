@@ -18,15 +18,19 @@ class LocalDriver(Driver):
     @override
     def list_dir(self, args: ListArgs) -> list[File]:
         files: list[File] = []
-        if not os.path.exists(args.path):
+        if not os.path.exists(args.path) or os.path.islink(args.path):
+            # Ignore symbolic links due to security reason for now.
             raise NotFoundError(f"Directory not found at '{args.path}'.")
         for entry in os.scandir(args.path):
-            files.append(self._entry_to_file(entry))
+            if not entry.is_junction() and not entry.is_symlink():
+                # Ignore symbolic links due to security reason for now.
+                files.append(self._entry_to_file(entry))
         return self._sort_files(files, args)
 
     @override
     def info(self, path: str) -> File:
-        if not os.path.exists(path):
+        if not os.path.exists(path) or os.path.islink(path):
+            # Ignore symbolic links due to security reason for now.
             raise NotFoundError(f"File not found at '{path}'.")
         stat = os.stat(path)
         name = os.path.basename(path)
@@ -44,6 +48,9 @@ class LocalDriver(Driver):
 
     @override
     def search(self, args: SearchArgs) -> list[File]:
+        if not os.path.exists(args.path) or os.path.islink(args.path):
+            # Ignore symbolic links due to security reason for now.
+            raise NotFoundError(f"Directory not found at '{args.path}'.")
         result: list[File] = []
         for entry in self._walk_entries(args.path, args.recursive):
             if self._match_entry(entry, args):
@@ -87,14 +94,16 @@ class LocalDriver(Driver):
     def _walk_entries(self, path: str, recursive: bool) -> Generator[os.DirEntry[str]]:
         if recursive:
             for root, _dirs, _files in os.walk(path):
-                try:
-                    for entry in os.scandir(root):
+                for entry in os.scandir(root):
+                    # Ignore symbolic links due to security reason for now.
+                    if not entry.is_junction() and not entry.is_symlink():
                         yield entry
-                except Exception:
-                    continue
+
         else:
             for entry in os.scandir(path):
-                yield entry
+                # Ignore symbolic links due to security reason for now.
+                if not entry.is_junction() and not entry.is_symlink():
+                    yield entry
 
     def _sort_files(self, files: list[File], args: SortArgs) -> list[File]:
         reverse = args.sort_order == "desc"
