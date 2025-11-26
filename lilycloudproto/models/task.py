@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import ClassVar
 
 from pydantic import BaseModel, ConfigDict
 
@@ -29,7 +30,7 @@ class TaskResponse(TaskBase):
     completed_at: datetime | None = None
     updated_at: datetime
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config: ClassVar[ConfigDict] = {"from_attributes": True}
 
 
 class TaskListResponse(BaseModel):

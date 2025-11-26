@@ -22,19 +22,13 @@ class TaskRepository:
         result = await self.db.execute(select(Task).where(Task.task_id == task_id))
         return result.scalar_one_or_none()
 
-    async def get_all(
-        self, page: int = 1, page_size: int = 20
-    ) -> tuple[list[Task], int]:
+    async def get_all(self, page: int = 1, page_size: int = 20) -> list[Task]:
         """Retrieve all tasks with pagination."""
         offset = (page - 1) * page_size
         statement = select(Task)
 
-        # Calculate total count
-        count_stmt = select(func.count()).select_from(statement.subquery())
-        total_count = (await self.db.execute(count_stmt)).scalar_one()
-
         result = await self.db.execute(statement.offset(offset).limit(page_size))
-        return list(result.scalars().all()), total_count
+        return list(result.scalars().all())
 
     async def search(
         self,
@@ -43,7 +37,7 @@ class TaskRepository:
         type: str | None = None,
         page: int = 1,
         page_size: int = 20,
-    ) -> tuple[list[Task], int]:
+    ) -> list[Task]:
         """Search for tasks by user, status, or type."""
         offset = (page - 1) * page_size
         statement = select(Task)
@@ -55,15 +49,31 @@ class TaskRepository:
         if type:
             statement = statement.where(Task.type == type)
 
-        # Calculate total count
-        count_stmt = select(func.count()).select_from(statement.subquery())
-        total_count = (await self.db.execute(count_stmt)).scalar_one()
-
         statement = statement.order_by(Task.created_at.desc())
         statement = statement.offset(offset).limit(page_size)
 
         result = await self.db.execute(statement)
-        return list(result.scalars().all()), total_count
+        return list(result.scalars().all())
+
+    async def count(
+        self,
+        user_id: int | None = None,
+        status: str | None = None,
+        type: str | None = None,
+    ) -> int:
+        """Count tasks with optional filters."""
+        statement = select(Task)
+
+        if user_id:
+            statement = statement.where(Task.user_id == user_id)
+        if status:
+            statement = statement.where(Task.status == status)
+        if type:
+            statement = statement.where(Task.type == type)
+
+        count_statement = select(func.count()).select_from(statement.subquery())
+        total_count = (await self.db.execute(count_statement)).scalar_one()
+        return total_count
 
     async def update(self, task: Task) -> Task:
         """Update a task."""

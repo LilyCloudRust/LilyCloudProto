@@ -27,7 +27,7 @@ class TaskStatus(str, PyEnum):
 
 
 class Task(Base):
-    __tablename__ = "tasks"
+    __tablename__: str = "tasks"
 
     task_id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(
