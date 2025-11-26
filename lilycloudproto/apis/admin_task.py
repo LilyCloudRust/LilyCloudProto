@@ -20,7 +20,7 @@ async def list_tasks(
     tasks = await repo.get_all(page=page, page_size=page_size)
     total_count = await repo.count()
     return TaskListResponse(
-        items=[TaskResponse.model_validate(t) for t in tasks],
+        items=[TaskResponse.model_validate(task) for task in tasks],
         total_count=total_count,
     )
 

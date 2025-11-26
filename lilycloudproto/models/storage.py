@@ -40,7 +40,7 @@ class StorageListResponse(BaseModel):
     items: list[StorageResponse]
 
 
-class StorageQueryParams(BaseModel):
+class StorageListQuert(BaseModel):
     keyword: str | None = Field(None)
     type: StorageType | None = Field(None)
     enabled_first: bool = Field(False)

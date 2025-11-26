@@ -37,7 +37,7 @@ class StorageRepository:
         enabled_first: bool = False,
         page: int = 1,
         page_size: int = 20,
-    ) -> tuple[list[Storage], int]:
+    ) -> list[Storage]:
         """Search for storage configurations by keyword or type."""
         offset = (page - 1) * page_size
         statement = select(Storage)
@@ -45,10 +45,6 @@ class StorageRepository:
             statement = statement.where(Storage.mount_path.contains(keyword))
         if type:
             statement = statement.where(Storage.type == type)
-
-        # Calculate total count
-        count_stmt = select(func.count()).select_from(statement.subquery())
-        total_count = (await self.db.execute(count_stmt)).scalar_one()
 
         # Apply sorting
         if enabled_first:
@@ -59,7 +55,23 @@ class StorageRepository:
 
         statement = statement.offset(offset).limit(page_size)
         result = await self.db.execute(statement)
-        return list(result.scalars().all()), total_count
+        return list(result.scalars().all())
+
+    async def count(
+        self,
+        keyword: str | None = None,
+        type: StorageType | None = None,
+    ) -> int:
+        """Count storage configurations with optional filters."""
+        statement = select(Storage)
+        if keyword:
+            statement = statement.where(Storage.mount_path.contains(keyword))
+        if type:
+            statement = statement.where(Storage.type == type)
+
+        count_statement = select(func.count()).select_from(statement.subquery())
+        total_count = (await self.db.execute(count_statement)).scalar_one()
+        return total_count
 
     async def update(self, storage: Storage) -> Storage:
         """Update a storage configuration."""
