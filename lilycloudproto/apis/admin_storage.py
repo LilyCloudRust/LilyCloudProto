@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, status
+from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from lilycloudproto.database import get_db
-from lilycloudproto.entities.storage import Storage
-from lilycloudproto.error import ConflictError, NotFoundError
+from lilycloudproto.entities.storage import Storage, validate_config
+from lilycloudproto.error import ConflictError, NotFoundError, UnprocessableEntityError
 from lilycloudproto.infra.storage_repository import StorageRepository
 from lilycloudproto.models.storage import (
     StorageCreate,
@@ -23,11 +24,19 @@ async def create_storage(
     db: AsyncSession = Depends(get_db),
 ) -> StorageResponse:
     """Create a new storage configuration."""
+    # Validate the configuration based on the storage type.
+    try:
+        config = validate_config(data.type, data.config)
+    except ValidationError as error:
+        raise UnprocessableEntityError(
+            f"Invalid configuration for type '{data.type}': {error}"
+        ) from error
+
     repo = StorageRepository(db)
     storage = Storage(
         mount_path=data.mount_path,
         type=data.type,
-        config=data.config,
+        config=config,
         enabled=data.enabled,
     )
     try:
@@ -84,9 +93,15 @@ async def update_storage(
     if not storage:
         raise NotFoundError(f"Storage with ID '{storage_id}' not found.")
 
-    # Determine effective new state.
+    # Validate new state.
     type = data.type if data.type is not None else storage.type
-    config = data.config.model_dump() if data.config is not None else storage.config
+    config = data.config if data.config is not None else storage.config
+    try:
+        config = validate_config(type, config)
+    except ValidationError as error:
+        raise UnprocessableEntityError(
+            f"Invalid configuration for type '{type}': {error}"
+        ) from error
 
     # Apply updates.
     if data.mount_path is not None:

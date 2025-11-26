@@ -45,3 +45,18 @@ class Storage(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+CONFIG_MAP: dict[StorageType, type[StorageConfig]] = {
+    StorageType.LOCAL: LocalConfig,
+    StorageType.S3: S3Config,
+}
+
+
+def validate_config(
+    storage_type: StorageType, config: StorageConfig | dict[str, str]
+) -> dict[str, str]:
+    model = CONFIG_MAP.get(storage_type)
+    if not model:
+        raise ValueError(f"Unknown storage type: {storage_type}")
+    return model.model_validate(config).model_dump()
