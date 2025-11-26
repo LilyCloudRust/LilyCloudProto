@@ -25,36 +25,36 @@ class UserRepository:
         result = await self.db.execute(select(User).where(User.user_id == user_id))
         return result.scalar_one_or_none()
 
-    async def get_all(
-        self, page: int = 1, page_size: int = 20
-    ) -> tuple[list[User], int]:
+    async def get_all(self, page: int = 1, page_size: int = 20) -> list[User]:
         """Retrieve all users with pagination."""
         offset = (page - 1) * page_size
         statement = select(User)
 
-        # Calculate total count
-        count_stmt = select(func.count()).select_from(statement.subquery())
-        total_count = (await self.db.execute(count_stmt)).scalar_one()
-
         result = await self.db.execute(statement.offset(offset).limit(page_size))
-        return list(result.scalars().all()), total_count
+        return list(result.scalars().all())
 
     async def search(
         self, keyword: str | None = None, page: int = 1, page_size: int = 20
-    ) -> tuple[list[User], int]:
+    ) -> list[User]:
         """Search for users by keyword with pagination."""
         offset = (page - 1) * page_size
         statement = select(User)
         if keyword:
             statement = statement.where(User.username.contains(keyword))
 
-        # Calculate total count
-        count_stmt = select(func.count()).select_from(statement.subquery())
-        total_count = (await self.db.execute(count_stmt)).scalar_one()
-
         statement = statement.offset(offset).limit(page_size)
         result = await self.db.execute(statement)
-        return list(result.scalars().all()), total_count
+        return list(result.scalars().all())
+
+    async def count(self, keyword: str | None = None) -> int:
+        """Count users with optional keyword search."""
+        statement = select(User)
+        if keyword:
+            statement = statement.where(User.username.contains(keyword))
+
+        count_statement = select(func.count()).select_from(statement.subquery())
+        total_count = (await self.db.execute(count_statement)).scalar_one()
+        return total_count
 
     async def update(self, user: User) -> User:
         """Update a user's information."""

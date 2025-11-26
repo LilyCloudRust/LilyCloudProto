@@ -8,8 +8,8 @@ from lilycloudproto.error import ConflictError, NotFoundError
 from lilycloudproto.infra.user_repository import UserRepository
 from lilycloudproto.models.user import (
     UserCreate,
+    UserListQuery,
     UserListResponse,
-    UserQueryParams,
     UserResponse,
     UserUpdate,
 )
@@ -48,19 +48,19 @@ async def get_user(
 
 @router.get("", response_model=UserListResponse)
 async def list_users(
-    params: UserQueryParams = Depends(),
+    query: UserListQuery = Depends(),
     db: AsyncSession = Depends(get_db),
 ) -> UserListResponse:
     """List all users with pagination and optional keyword search."""
     repo = UserRepository(db)
-    if params.keyword is None:
-        users, total_count = await repo.get_all(
-            page=params.page, page_size=params.page_size
-        )
+    if query.keyword is None:
+        users = await repo.get_all(page=query.page, page_size=query.page_size)
+        total_count = await repo.count()
     else:
-        users, total_count = await repo.search(
-            keyword=params.keyword, page=params.page, page_size=params.page_size
+        users = await repo.search(
+            keyword=query.keyword, page=query.page, page_size=query.page_size
         )
+        total_count = await repo.count(keyword=query.keyword)
     return UserListResponse(
         items=[UserResponse.model_validate(user) for user in users],
         total_count=total_count,
