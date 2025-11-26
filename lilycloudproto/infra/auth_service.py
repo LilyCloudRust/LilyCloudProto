@@ -24,8 +24,14 @@ password_hash = PasswordHash(
 
 
 class AuthService:
+    _dummy_hash: str | None = None
+
     def __init__(self, user_repo: UserRepository):
         self.user_repo = user_repo
+        if AuthService._dummy_hash is None:
+            AuthService._dummy_hash = self.get_password_hash(
+                "dummy_password_for_timing_protection"
+            )
 
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
         return password_hash.verify(plain_password, hashed_password)
@@ -63,7 +69,10 @@ class AuthService:
 
     async def authenticate_user(self, username: str, password: str) -> TokenResponse:
         user = await self.user_repo.get_by_username(username)
-        if not user or not self.verify_password(password, user.hashed_password):
+        hash_to_verify = user.hashed_password if user else str(self._dummy_hash)
+        is_password_correct = self.verify_password(password, hash_to_verify)
+
+        if user is None or not is_password_correct:
             raise AuthenticationError("Incorrect username or password") from None
 
         return self._generate_tokens(user)
@@ -83,7 +92,6 @@ class AuthService:
         if user_id is None:
             raise AuthenticationError("Invalid token") from None
 
-        # 验证用户是否存在
         user = await self.user_repo.get_by_id(int(user_id))
         if not user:
             raise AuthenticationError("User not found") from None
@@ -109,7 +117,7 @@ class AuthService:
         access_token = self.create_token(
             data={"sub": str(user.user_id)}, expires_delta=access_token_expires
         )
-        refresh_token_expires = timedelta(days=7)
+        refresh_token_expires = timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
         refresh_token = self.create_token(
             data={"sub": str(user.user_id)}, expires_delta=refresh_token_expires
         )
