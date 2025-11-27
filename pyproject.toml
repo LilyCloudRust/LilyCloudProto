@@ -50,9 +50,3 @@ lint.ignore = ["B008"]
 [tool.mypy]
 python_version = "3.13"
 strict = true
-
-[dependency-groups]
-dev = [
-    "mypy>=1.18.2",
-    "pre-commit>=4.4.0",
-]

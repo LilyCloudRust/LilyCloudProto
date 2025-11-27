@@ -10,11 +10,11 @@ from lilycloudproto.infra.auth_service import AuthService
 from lilycloudproto.infra.user_repository import UserRepository
 from lilycloudproto.models.auth import (
     LoginRequest,
+    LoginResponse,
     LogoutResponse,
     RefreshRequest,
     RefreshResponse,
     RegisterRequest,
-    TokenResponse,
 )
 from lilycloudproto.models.user import UserResponse
 
@@ -46,12 +46,15 @@ async def register(
     return UserResponse.model_validate(user)
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login", response_model=LoginResponse)
 async def login(
     payload: LoginRequest,
     service: AuthService = Depends(get_auth_service),
-) -> TokenResponse:
-    return await service.authenticate_user(payload.username, payload.password)
+) -> LoginResponse:
+    access_token, refresh_token = await service.authenticate_user(
+        payload.username, payload.password
+    )
+    return LoginResponse(access_token=access_token, refresh_token=refresh_token)
 
 
 @router.post("/refresh", response_model=RefreshResponse)
@@ -59,8 +62,8 @@ async def refresh_token(
     payload: RefreshRequest,
     service: AuthService = Depends(get_auth_service),
 ) -> RefreshResponse:
-    new_access_token = await service.refresh_access_token(payload.refresh_token)
-    return RefreshResponse(access_token=new_access_token)
+    refreshed_token = await service.refresh_access_token(payload.refresh_token)
+    return RefreshResponse(access_token=refreshed_token)
 
 
 @router.post("/logout", response_model=LogoutResponse)
