@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from lilycloudproto.config import auth_settings
 from lilycloudproto.database import get_db
 from lilycloudproto.entities.user import User
 from lilycloudproto.infra.auth_service import AuthService
@@ -26,7 +27,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 async def get_auth_service(db: AsyncSession = Depends(get_db)) -> AuthService:
     """Dependency injection for AuthService."""
     repo = UserRepository(db)
-    return AuthService(repo)
+    return AuthService(repo, auth_settings)
 
 
 async def get_current_user(

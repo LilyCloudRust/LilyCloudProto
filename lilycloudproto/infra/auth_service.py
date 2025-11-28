@@ -6,7 +6,7 @@ from pwdlib.hashers.argon2 import Argon2Hasher
 from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
 
-from lilycloudproto.config import settings
+from lilycloudproto.config import AuthSettings
 from lilycloudproto.entities.user import User
 from lilycloudproto.error import AuthenticationError
 from lilycloudproto.infra.user_repository import UserRepository
@@ -20,16 +20,18 @@ class Payload(BaseModel):
 class AuthService:
     user_repo: UserRepository
     password_hash: PasswordHash
+    settings: AuthSettings
     _dummy_hash: str | None = None
 
-    def __init__(self, user_repo: UserRepository):
+    def __init__(self, user_repo: UserRepository, settings: AuthSettings):
         self.user_repo = user_repo
+        self.settings = settings
         self.password_hash = PasswordHash(
             (
                 Argon2Hasher(
-                    time_cost=settings.ARGON2_TIME_COST,
-                    memory_cost=settings.ARGON2_MEMORY_COST,
-                    parallelism=settings.ARGON2_PARALLELISM,
+                    time_cost=self.settings.ARGON2_TIME_COST,
+                    memory_cost=self.settings.ARGON2_MEMORY_COST,
+                    parallelism=self.settings.ARGON2_PARALLELISM,
                 ),
             )
         )
@@ -63,7 +65,7 @@ class AuthService:
             raise AuthenticationError("User not found") from None
 
         expires = datetime.now(UTC) + timedelta(
-            minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+            minutes=self.settings.ACCESS_TOKEN_EXPIRE_MINUTES
         )
         access_token = self._create_token(Payload(sub=str(user.user_id), exp=expires))
         return access_token
@@ -79,14 +81,14 @@ class AuthService:
     def _create_token(self, payload: Payload) -> str:
         return jwt.encode(  # pyright: ignore[reportUnknownMemberType]
             payload.model_dump(),
-            settings.SECRET_KEY,
-            algorithm=settings.ALGORITHM,
+            self.settings.SECRET_KEY,
+            algorithm=self.settings.ALGORITHM,
         )
 
     def _decode_token(self, token: str) -> Payload:
         try:
             data = jwt.decode(  # pyright: ignore[reportAny, reportUnknownMemberType]
-                token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+                token, self.settings.SECRET_KEY, algorithms=[self.settings.ALGORITHM]
             )
             return Payload.model_validate(data)
         except jwt.ExpiredSignatureError as error:
@@ -98,11 +100,12 @@ class AuthService:
         access_token_payload = Payload(
             sub=str(user.user_id),
             exp=datetime.now(UTC)
-            + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+            + timedelta(minutes=self.settings.ACCESS_TOKEN_EXPIRE_MINUTES),
         )
         refresh_token_payload = Payload(
             sub=str(user.user_id),
-            exp=datetime.now(UTC) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
+            exp=datetime.now(UTC)
+            + timedelta(days=self.settings.REFRESH_TOKEN_EXPIRE_DAYS),
         )
         access_token = self._create_token(access_token_payload)
         refresh_token = self._create_token(refresh_token_payload)
