@@ -9,7 +9,7 @@ from lilycloudproto.error import ConflictError, NotFoundError, UnprocessableEnti
 from lilycloudproto.infra.storage_repository import StorageRepository
 from lilycloudproto.models.storage import (
     StorageCreate,
-    StorageListQuert,
+    StorageListQuery,
     StorageListResponse,
     StorageResponse,
     StorageUpdate,
@@ -63,17 +63,13 @@ async def get_storage(
 
 @router.get("", response_model=StorageListResponse)
 async def list_storages(
-    params: StorageListQuert = Depends(),
+    params: StorageListQuery = Depends(),
     db: AsyncSession = Depends(get_db),
 ) -> StorageListResponse:
     """List all storage configurations."""
     repo = StorageRepository(db)
     storages = await repo.search(
-        keyword=params.keyword,
-        type=params.type,
-        enabled_first=params.enabled_first,
-        page=params.page,
-        page_size=params.page_size,
+        params=params,
     )
     total = await repo.count(
         keyword=params.keyword,

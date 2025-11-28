@@ -25,7 +25,7 @@ class UserResponse(BaseModel):
 
 class UserListResponse(BaseModel):
     items: list[UserResponse]
-    total_count: int
+    total: int
 
 
 class UserListQuery(BaseModel):

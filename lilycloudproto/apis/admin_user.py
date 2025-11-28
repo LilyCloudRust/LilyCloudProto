@@ -48,22 +48,20 @@ async def get_user(
 
 @router.get("", response_model=UserListResponse)
 async def list_users(
-    query: UserListQuery = Depends(),
+    params: UserListQuery = Depends(),
     db: AsyncSession = Depends(get_db),
 ) -> UserListResponse:
     """List all users with pagination and optional keyword search."""
     repo = UserRepository(db)
-    if query.keyword is None:
-        users = await repo.get_all(page=query.page, page_size=query.page_size)
-        total_count = await repo.count()
-    else:
-        users = await repo.search(
-            keyword=query.keyword, page=query.page, page_size=query.page_size
-        )
-        total_count = await repo.count(keyword=query.keyword)
+    users = await repo.search(
+        keyword=params.keyword,
+        page=params.page,
+        page_size=params.page_size,
+    )
+    total = await repo.count(keyword=params.keyword)
     return UserListResponse(
         items=[UserResponse.model_validate(user) for user in users],
-        total_count=total_count,
+        total=total,
     )
 
 

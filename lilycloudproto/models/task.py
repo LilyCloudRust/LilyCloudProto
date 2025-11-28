@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import ClassVar
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from lilycloudproto.entities.task import TaskStatus, TaskType
 
@@ -34,5 +34,13 @@ class TaskResponse(TaskBase):
 
 
 class TaskListResponse(BaseModel):
+    total: int
     items: list[TaskResponse]
-    total_count: int
+
+
+class TaskListQuert(BaseModel):
+    keyword: str | None = Field(None)
+    type: TaskType | None = Field(None)
+    status: TaskStatus | None = Field(None)
+    page: int = Field(1, ge=1)
+    page_size: int = Field(20, ge=1, le=100)

@@ -1,27 +1,35 @@
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from lilycloudproto.database import get_db
 from lilycloudproto.error import NotFoundError
 from lilycloudproto.infra.task_repository import TaskRepository
-from lilycloudproto.models.task import TaskListResponse, TaskResponse, TaskUpdate
+from lilycloudproto.models.task import (
+    TaskListQuert,
+    TaskListResponse,
+    TaskResponse,
+    TaskUpdate,
+)
 
 router = APIRouter(prefix="/api/admin/tasks", tags=["Admin"])
 
 
 @router.get("", response_model=TaskListResponse)
 async def list_tasks(
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    params: TaskListQuert = Depends(),
     db: AsyncSession = Depends(get_db),
 ) -> TaskListResponse:
     """List all tasks."""
     repo = TaskRepository(db)
-    tasks = await repo.get_all(page=page, page_size=page_size)
-    total_count = await repo.count()
+    tasks = await repo.search(
+        status=params.status,
+        page=params.page,
+        page_size=params.page_size,
+    )
+    total = await repo.count(status=params.status)
     return TaskListResponse(
         items=[TaskResponse.model_validate(task) for task in tasks],
-        total_count=total_count,
+        total=total,
     )
 
 
