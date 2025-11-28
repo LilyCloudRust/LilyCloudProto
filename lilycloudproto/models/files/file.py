@@ -1,13 +1,18 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Literal
+from enum import Enum
+
+
+class Type(str, Enum):
+    FILE = "file"
+    DIRECTORY = "directory"
 
 
 @dataclass
 class File:
     name: str
     path: str
-    type: Literal["file", "directory"]
+    type: Type
     size: int  # In bytes.
     mime_type: str
     created_at: datetime

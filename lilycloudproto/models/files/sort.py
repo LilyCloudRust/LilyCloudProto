@@ -1,7 +1,19 @@
-from typing import Literal, Protocol
+from enum import Enum
+from typing import Protocol
 
-SortBy = Literal["name", "size", "created", "modified", "accessed", "type"]
-SortOrder = Literal["asc", "desc"]
+
+class SortBy(str, Enum):
+    NAME = "name"
+    SIZE = "size"
+    CREATED = "created"
+    MODIFIED = "modified"
+    ACCESSED = "accessed"
+    TYPE = "type"
+
+
+class SortOrder(str, Enum):
+    ASC = "asc"
+    DESC = "desc"
 
 
 class SortArgs(Protocol):

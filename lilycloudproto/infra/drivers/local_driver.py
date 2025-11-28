@@ -8,7 +8,7 @@ import magic
 
 from lilycloudproto.error import NotFoundError
 from lilycloudproto.infra.driver import Driver
-from lilycloudproto.models.files.file import File
+from lilycloudproto.models.files.file import File, Type
 from lilycloudproto.models.files.list import ListArgs
 from lilycloudproto.models.files.search import SearchArgs
 from lilycloudproto.models.files.sort import SortArgs
@@ -38,7 +38,7 @@ class LocalDriver(Driver):
         return File(
             name=name,
             path=path,
-            type="directory" if os.path.isdir(path) else "file",
+            type=Type.DIRECTORY if os.path.isdir(path) else Type.FILE,
             size=stat.st_size,
             mime_type=mime_type,
             created_at=datetime.fromtimestamp(stat.st_ctime),
@@ -83,7 +83,7 @@ class LocalDriver(Driver):
         return File(
             name=entry.name,
             path=entry.path,
-            type="directory" if entry.is_dir() else "file",
+            type=Type.DIRECTORY if entry.is_dir() else Type.FILE,
             size=stat.st_size,
             mime_type=mime_type,
             created_at=datetime.fromtimestamp(stat.st_ctime),

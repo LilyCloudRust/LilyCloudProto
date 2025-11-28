@@ -9,15 +9,15 @@ from lilycloudproto.models.files.sort import SortBy, SortOrder
 @dataclass
 class ListArgs:
     path: str
-    sort_by: SortBy = "name"
-    sort_order: SortOrder = "asc"
+    sort_by: SortBy = SortBy.NAME
+    sort_order: SortOrder = SortOrder.ASC
     dir_first: bool = True
 
 
 class ListQuery(BaseModel):
     path: str
-    sort_by: SortBy = "name"
-    sort_order: SortOrder = "asc"
+    sort_by: SortBy = SortBy.NAME
+    sort_order: SortOrder = SortOrder.ASC
     dir_first: bool = True
 
 

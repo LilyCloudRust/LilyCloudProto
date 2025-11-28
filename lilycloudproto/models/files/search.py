@@ -13,8 +13,8 @@ class SearchArgs:
     recursive: bool = True
     type: str | None = None
     mime_type: str | None = None
-    sort_by: SortBy = "name"
-    sort_order: SortOrder = "asc"
+    sort_by: SortBy = SortBy.NAME
+    sort_order: SortOrder = SortOrder.ASC
     dir_first: bool = True
 
 
@@ -24,8 +24,8 @@ class SearchQuery(BaseModel):
     recursive: bool = True
     type: str | None = None
     mime_type: str | None = None
-    sort_by: SortBy = "name"
-    sort_order: SortOrder = "asc"
+    sort_by: SortBy = SortBy.NAME
+    sort_order: SortOrder = SortOrder.ASC
     dir_first: bool = True
 
 
