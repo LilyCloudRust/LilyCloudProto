@@ -38,7 +38,7 @@ class TaskListResponse(BaseModel):
     items: list[TaskResponse]
 
 
-class TaskListQuert(BaseModel):
+class TaskListQuery(BaseModel):
     keyword: str | None = Field(None)
     type: TaskType | None = Field(None)
     status: TaskStatus | None = Field(None)

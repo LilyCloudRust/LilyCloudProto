@@ -5,7 +5,7 @@ from lilycloudproto.database import get_db
 from lilycloudproto.error import NotFoundError
 from lilycloudproto.infra.task_repository import TaskRepository
 from lilycloudproto.models.task import (
-    TaskListQuert,
+    TaskListQuery,
     TaskListResponse,
     TaskResponse,
     TaskUpdate,
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/api/admin/tasks", tags=["Admin"])
 
 @router.get("", response_model=TaskListResponse)
 async def list_tasks(
-    params: TaskListQuert = Depends(),
+    params: TaskListQuery = Depends(),
     db: AsyncSession = Depends(get_db),
 ) -> TaskListResponse:
     """List all tasks."""
