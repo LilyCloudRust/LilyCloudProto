@@ -62,7 +62,7 @@ class LocalDriver(Driver):
         if mime_type:
             return mime_type
         if os.path.isfile(path):
-            return magic.from_file(  # pyright: ignore[reportUnknownMemberType]
+            return magic.from_file(  # type: ignore[no-any-return]
                 path, mime=True
             )
         return "inode/directory"
