@@ -31,7 +31,7 @@ class Task(Base):
 
     task_id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.user_id"), nullable=False
+        Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False
     )
     type: Mapped[TaskType] = mapped_column(
         Enum(TaskType, native_enum=False), nullable=False
