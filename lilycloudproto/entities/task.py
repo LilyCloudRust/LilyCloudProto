@@ -33,12 +33,14 @@ class Task(Base):
     user_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False
     )
+    # Use native_enum=False for cross-database compatibility (e.g., SQLite does not support native enums)
     type: Mapped[TaskType] = mapped_column(
         Enum(TaskType, native_enum=False), nullable=False
     )
     src_dir: Mapped[str | None] = mapped_column(Text, nullable=True)
     dst_dirs: Mapped[list[str]] = mapped_column(JSON, nullable=False)
     file_names: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    # Use native_enum=False for cross-database compatibility (e.g., SQLite does not support native enums)
     status: Mapped[TaskStatus] = mapped_column(
         Enum(TaskStatus, native_enum=False), nullable=False, default=TaskStatus.PENDING
     )
