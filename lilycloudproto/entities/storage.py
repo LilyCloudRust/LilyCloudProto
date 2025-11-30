@@ -34,9 +34,7 @@ class Storage(Base):
 
     storage_id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     mount_path: Mapped[str] = mapped_column(String, unique=True, nullable=False)
-    type: Mapped[StorageType] = mapped_column(
-        Enum(StorageType, native_enum=False), nullable=False
-    )
+    type: Mapped[StorageType] = mapped_column(Enum(StorageType), nullable=False)
     config: Mapped[dict[str, str]] = mapped_column(JSON, nullable=False)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(
