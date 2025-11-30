@@ -6,7 +6,7 @@ from typing import override
 
 import magic
 
-from lilycloudproto.error import NotFoundError
+from lilycloudproto.error import BadRequestError, NotFoundError
 from lilycloudproto.infra.driver import Driver
 from lilycloudproto.models.files.file import File, Type
 from lilycloudproto.models.files.list import ListArgs
@@ -21,6 +21,8 @@ class LocalDriver(Driver):
         if not os.path.exists(args.path) or os.path.islink(args.path):
             # Ignore symbolic links due to security reason for now.
             raise NotFoundError(f"Directory not found at '{args.path}'.")
+        if not os.path.isdir(args.path):
+            raise BadRequestError(f"Path '{args.path}' is not a directory.")
         for entry in os.scandir(args.path):
             if not entry.is_junction() and not entry.is_symlink():
                 # Ignore symbolic links due to security reason for now.
@@ -51,6 +53,8 @@ class LocalDriver(Driver):
         if not os.path.exists(args.path) or os.path.islink(args.path):
             # Ignore symbolic links due to security reason for now.
             raise NotFoundError(f"Directory not found at '{args.path}'.")
+        if not os.path.isdir(args.path):
+            raise BadRequestError(f"Path '{args.path}' is not a directory.")
         result: list[File] = []
         for entry in self._walk_entries(args.path, args.recursive):
             if self._match_entry(entry, args):
@@ -62,19 +66,24 @@ class LocalDriver(Driver):
         if mime_type:
             return mime_type
         if os.path.isfile(path):
-            return magic.from_file(  # type: ignore[no-any-return]
+            return magic.from_file(  # pyright: ignore[reportUnknownMemberType]
                 path, mime=True
             )
         return "inode/directory"
 
     def _match_entry(self, entry: os.DirEntry[str], args: SearchArgs) -> bool:
         if args.type:
-            return entry.is_file() if args.type == "file" else entry.is_dir()
+            type_match = entry.is_file() if args.type == "file" else entry.is_dir()
+            if not type_match:
+                return False
         if args.keyword:
-            return args.keyword.lower() in entry.name.lower()
+            keyword_match = args.keyword.lower() in entry.name.lower()
+            if not keyword_match:
+                return False
         if args.mime_type:
             mime_type = self._get_mime_type(entry.path)
-            return args.mime_type.lower() in mime_type.lower()
+            if args.mime_type.lower() not in mime_type.lower():
+                return False
         return True
 
     def _entry_to_file(self, entry: os.DirEntry[str]) -> File:
@@ -113,7 +122,7 @@ class LocalDriver(Driver):
             "created": lambda file: file.created_at,
             "modified": lambda file: file.modified_at,
             "accessed": lambda file: file.accessed_at,
-            "type": lambda file: file.mime_type or "",
+            "type": lambda file: file.mime_type,
         }
         files.sort(key=sort_key[args.sort_by], reverse=reverse)
         if args.dir_first:

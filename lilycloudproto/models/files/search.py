@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from pydantic import BaseModel
 
-from lilycloudproto.models.files.file import File
+from lilycloudproto.models.files.file import File, Type
 from lilycloudproto.models.files.sort import SortBy, SortOrder
 
 
@@ -11,7 +11,7 @@ class SearchArgs:
     keyword: str
     path: str
     recursive: bool = True
-    type: str | None = None
+    type: Type | None = None
     mime_type: str | None = None
     sort_by: SortBy = SortBy.NAME
     sort_order: SortOrder = SortOrder.ASC
@@ -22,7 +22,7 @@ class SearchQuery(BaseModel):
     keyword: str
     path: str
     recursive: bool = True
-    type: str | None = None
+    type: Type | None = None
     mime_type: str | None = None
     sort_by: SortBy = SortBy.NAME
     sort_order: SortOrder = SortOrder.ASC
