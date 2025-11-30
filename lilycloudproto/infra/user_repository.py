@@ -25,6 +25,12 @@ class UserRepository:
         result = await self.db.execute(select(User).where(User.user_id == user_id))
         return result.scalar_one_or_none()
 
+    async def get_by_username(self, username: str) -> User | None:
+        """Retrieve a user by their username. Returns None if not found."""
+        statement = select(User).where(User.username == username)
+        result = await self.db.execute(statement)
+        return result.scalar_one_or_none()
+
     async def get_all(self, page: int = 1, page_size: int = 20) -> list[User]:
         """Retrieve all users with pagination."""
         offset = (page - 1) * page_size
