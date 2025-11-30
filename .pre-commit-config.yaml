@@ -3,7 +3,7 @@ fail_fast: false
 
 repos:
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.9.10
+    rev: 0.9.13
     hooks:
       - id: uv-lock
 
@@ -13,18 +13,20 @@ repos:
       - id: black
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.5
+    rev: v0.14.7
     hooks:
       - id: ruff-check
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.18.2
+    rev: v1.19.0
     hooks:
       - id: mypy
-        additional_dependencies: 
-          - "aiosqlite"
-          - "fastapi"
-          - "scalar_fastapi"
-          - "uvicorn"
-          - "sqlalchemy"
+        additional_dependencies:
+          - "aiosqlite>=0.21.0"
+          - "fastapi>=0.119.1"
+          - "scalar_fastapi>=1.4.3"
+          - "uvicorn>=0.38.0"
+          - "sqlalchemy>=2.0.44"
+          - "python-magic-bin>=0.4.14 ; sys_platform == 'win32'"
+          - "python-magic>=0.4.27 ; sys_platform != 'win32'"
         args: ["--strict"]
