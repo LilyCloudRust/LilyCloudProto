@@ -1,3 +1,4 @@
+from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -27,7 +28,9 @@ class UserRepository:
     async def get_all(self, page: int = 1, page_size: int = 20) -> list[User]:
         """Retrieve all users with pagination."""
         offset = (page - 1) * page_size
-        result = await self.db.execute(select(User).offset(offset).limit(page_size))
+        statement = select(User)
+
+        result = await self.db.execute(statement.offset(offset).limit(page_size))
         return list(result.scalars().all())
 
     async def search(
@@ -38,9 +41,20 @@ class UserRepository:
         statement = select(User)
         if keyword:
             statement = statement.where(User.username.contains(keyword))
+
         statement = statement.offset(offset).limit(page_size)
         result = await self.db.execute(statement)
         return list(result.scalars().all())
+
+    async def count(self, keyword: str | None = None) -> int:
+        """Count users with optional keyword search."""
+        statement = select(User)
+        if keyword:
+            statement = statement.where(User.username.contains(keyword))
+
+        count_statement = select(func.count()).select_from(statement.subquery())
+        total_count = (await self.db.execute(count_statement)).scalar_one()
+        return total_count
 
     async def update(self, user: User) -> User:
         """Update a user's information."""

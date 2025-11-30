@@ -21,6 +21,12 @@ class ConflictError(Exception):
     pass
 
 
+class UnprocessableEntityError(Exception):
+    """Raised when the request is well-formed but has semantic errors."""
+
+    pass
+
+
 class TeapotError(Exception):
     """Raised when the server is a teapot and refuses to brew coffee."""
 
@@ -48,6 +54,12 @@ def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(ConflictError)
     async def conflict_handler(_request: Request, exception: ConflictError) -> None:
         raise HTTPException(status_code=409, detail=str(exception))
+
+    @app.exception_handler(UnprocessableEntityError)
+    async def unprocessable_entity_handler(
+        _request: Request, exception: UnprocessableEntityError
+    ) -> None:
+        raise HTTPException(status_code=422, detail=str(exception))
 
     @app.exception_handler(TeapotError)
     async def teapot_handler(_request: Request, exception: TeapotError) -> None:

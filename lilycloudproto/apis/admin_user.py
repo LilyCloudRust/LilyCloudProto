@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -6,7 +6,13 @@ from lilycloudproto.database import get_db
 from lilycloudproto.entities.user import User
 from lilycloudproto.error import ConflictError, NotFoundError
 from lilycloudproto.infra.user_repository import UserRepository
-from lilycloudproto.models.user import UserCreate, UserResponse, UserUpdate
+from lilycloudproto.models.user import (
+    UserCreate,
+    UserListQuery,
+    UserListResponse,
+    UserResponse,
+    UserUpdate,
+)
 
 router = APIRouter(prefix="/api/admin/users", tags=["Admin"])
 
@@ -16,6 +22,7 @@ async def create_user(
     data: UserCreate,
     db: AsyncSession = Depends(get_db),
 ) -> UserResponse:
+    """Create a new user."""
     repo = UserRepository(db)
     user = User(username=data.username, hashed_password=data.password)
     # Check for duplicate username.
@@ -31,6 +38,7 @@ async def get_user(
     user_id: int,
     db: AsyncSession = Depends(get_db),
 ) -> UserResponse:
+    """Get user details by ID."""
     repo = UserRepository(db)
     user = await repo.get_by_id(user_id)
     if not user:
@@ -38,19 +46,23 @@ async def get_user(
     return UserResponse.model_validate(user)
 
 
-@router.get("", response_model=list[UserResponse])
+@router.get("", response_model=UserListResponse)
 async def list_users(
-    keyword: str | None = Query(None, min_length=1),
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    params: UserListQuery = Depends(),
     db: AsyncSession = Depends(get_db),
-) -> list[UserResponse]:
+) -> UserListResponse:
+    """List all users with pagination and optional keyword search."""
     repo = UserRepository(db)
-    if keyword is None:
-        users = await repo.get_all(page=page, page_size=page_size)
-    else:
-        users = await repo.search(keyword=keyword, page=page, page_size=page_size)
-    return [UserResponse.model_validate(user) for user in users]
+    users = await repo.search(
+        keyword=params.keyword,
+        page=params.page,
+        page_size=params.page_size,
+    )
+    total = await repo.count(keyword=params.keyword)
+    return UserListResponse(
+        items=[UserResponse.model_validate(user) for user in users],
+        total=total,
+    )
 
 
 @router.patch("/{user_id}", response_model=UserResponse)
@@ -59,6 +71,7 @@ async def update_user(
     data: UserUpdate,
     db: AsyncSession = Depends(get_db),
 ) -> UserResponse:
+    """Update user details."""
     repo = UserRepository(db)
     user = await repo.get_by_id(user_id)
     if not user:
@@ -80,6 +93,7 @@ async def delete_user(
     user_id: int,
     db: AsyncSession = Depends(get_db),
 ) -> None:
+    """Delete a user by ID."""
     repo = UserRepository(db)
     user = await repo.get_by_id(user_id)
     if not user:
