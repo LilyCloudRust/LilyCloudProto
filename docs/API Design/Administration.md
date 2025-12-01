@@ -72,10 +72,10 @@ Request:
 Authorization: Bearer <access_token>
 {
   "keyword": "string",
-  "page": 1,
-  "page_size": 20,
   "sort_by": "username | created_at | updated_at",
-  "sort_order": "asc | desc"
+  "sort_order": "asc | desc",
+  "page": 1,
+  "page_size": 20
 }
 ```
 
@@ -228,11 +228,11 @@ Request:
 Authorization: Bearer <access_token>
 {
   "keyword": "local",
-  "page": 1,
-  "page_size": 20,
   "sort_by": "mount_path | type | created_at | updated_at",
   "sort_order": "asc | desc",
-  "enabled_first": true
+  "enabled_first": true,
+  "page": 1,
+  "page_size": 20
 }
 ```
 
@@ -240,7 +240,7 @@ Response:
 
 ```json
 {
-  "total_count": 100,
+  "total": 100,
   "page": 1,
   "page_size": 20,
   "items": [
