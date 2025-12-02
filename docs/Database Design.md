@@ -2,8 +2,8 @@
 
 ## Users Table
 
-- Table name: `users`
-- Description: Stores user account information.
+* Table name: `users`
+* Description: Stores user account information.
 
 | Column            | Type        | Description              |
 | ----------------- | ----------- | ------------------------ |
@@ -15,8 +15,8 @@
 
 ## Storage Table
 
-- Table name: `storages`
-- Description: Stores information about file storage locations.
+* Table name: `storages`
+* Description: Stores information about file storage locations.
 
 | Column       | Type        | Description                             |
 | ------------ | ----------- | --------------------------------------- |
@@ -30,9 +30,9 @@
 
 ## Tasks Table
 
-- Table name: `tasks`
-- Description: Stores file operation task records.
-- Notes: This table violates the first normal form (1NF) because it contains JSON array fields (`dst_dirs` and `file_names`), whether to split them into separate tables should be considered more carefully.
+* Table name: `tasks`
+* Description: Stores file operation task records.
+* Notes: This table violates the first normal form (1NF) because it contains JSON array fields (`dst_dirs` and `file_names`), whether to split them into separate tables should be considered more carefully.
 
 | Column         | Type        | Description                                                      |
 | -------------- | ----------- | ---------------------------------------------------------------- |
@@ -54,8 +54,8 @@
 
 ## Trash Information Table
 
-- Table name: `trash`
-- Description: Stores information about files in the recycle bin.
+* Table name: `trash`
+* Description: Stores information about files in the recycle bin.
 
 | Column          | Type        | Description                                                     |
 | --------------- | ----------- | --------------------------------------------------------------- |
