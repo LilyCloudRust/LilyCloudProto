@@ -72,7 +72,7 @@ Request:
 Authorization: Bearer <access_token>
 {
   "keyword": "string",
-  "sort_by": "username | created_at | updated_at",
+  "sort_by": "username | created | updated",
   "sort_order": "asc | desc",
   "page": 1,
   "page_size": 20
@@ -140,7 +140,7 @@ Response:
 
 ```json
 {
-  "message": "User deleted successfully"
+  "message": "User deleted successfully."
 }
 ```
 
@@ -228,7 +228,7 @@ Request:
 Authorization: Bearer <access_token>
 {
   "keyword": "local",
-  "sort_by": "mount_path | type | created_at | updated_at",
+  "sort_by": "mount_path | type | created | updated",
   "sort_order": "asc | desc",
   "enabled_first": true,
   "page": 1,
@@ -314,14 +314,171 @@ Response:
 
 ```json
 {
-  "message": "Storage deleted successfully"
+  "message": "Storage deleted successfully."
 }
 ```
 
 ## Task Management
 
 ```http
+POST    /api/admin/tasks
 GET     /api/admin/tasks
-DELETE  /api/admin/tasks/{task_id}
 PATCH   /api/admin/tasks/{task_id}
+DELETE  /api/admin/tasks/{task_id}
+```
+
+Note: CUD operations on tasks are not allowed, as tasks are managed by the system and should not be modified directly, these endpoints are provided for testing and debugging purposes.
+
+## Create Task
+
+```http
+POST    /api/admin/tasks
+```
+
+Request:
+
+```json
+Authorization: Bearer <access_token>
+{
+  "type": "copy",
+  "src_dir": "/Pictures",
+  "dst_dirs": ["/Documents"],
+  "file_names": ["report.pdf", "presentation.pptx"],
+  "status": "pending",
+  "progress": 0.0,
+  "message": "",
+}
+```
+
+Response
+
+```json
+{
+  "task_id": 1,
+  "user_id": 1,
+  "type": "copy",
+  "src_dir": "/Pictures",
+  "dst_dirs": ["/Documents"],
+  "file_names": ["report.pdf", "presentation.pptx"],
+  "status": "pending",
+  "progress": 0.0,
+  "message": "",
+  "created_at": "2025-10-25T00:00:00Z",
+  "started_at": null,
+  "completed_at": null,
+  "updated_at": "2025-10-25T00:00:00Z"
+}
+```
+
+## List Tasks
+
+```http
+GET     /api/admin/tasks
+```
+
+Request:
+
+```json
+Authorization: Bearer <access_token>
+{
+  "keyword": "string",
+  "user_id": 1,
+  "type": "copy",
+  "status": "pending",
+  "sort_by": "type | src | status | created | started | completed | updated",
+  "sort_order": "asc | desc",
+  "page": 1,
+  "page_size": 20
+}
+```
+
+## Response
+
+```json
+{
+  "total": 100,
+  "page": 1,
+  "page_size": 20,
+  "items": [
+    {
+      "task_id": 1,
+      "user_id": 1,
+      "type": "copy",
+      "src_dir": "/Pictures",
+      "dst_dirs": ["/Documents"],
+      "file_names": ["report.pdf", "presentation.pptx"],
+      "status": "pending",
+      "progress": 0.0,
+      "message": "",
+      "created_at": "2025-10-25T00:00:00Z",
+      "started_at": null,
+      "completed_at": null,
+      "updated_at": "2025-10-25T00:00:00Z"
+    }
+  ]
+}
+```
+
+## Update Task
+
+```http
+PATCH   /api/admin/tasks/{task_id}
+```
+
+Request:
+
+```json
+Authorization: Bearer <access_token>
+{
+  "user_id": 1,
+  "type": "copy",
+  "src_dir": "/Pictures",
+  "dst_dirs": ["/Documents"],
+  "file_names": ["report.pdf", "presentation.pptx"],
+  "status": "pending",
+  "progress": 0.0,
+  "message": "",
+  "started_at": "2025-10-25T00:00:00Z",
+  "completed_at": "2025-10-25T00:00:00Z"
+}
+```
+
+Response
+
+```json
+{
+  "task_id": 1,
+  "user_id": 1,
+  "type": "copy",
+  "src_dir": "/Pictures",
+  "dst_dirs": ["/Documents"],
+  "file_names": ["report.pdf", "presentation.pptx"],
+  "status": "pending",
+  "progress": 0.0,
+  "message": "",
+  "created_at": "2025-10-25T00:00:00Z",
+  "started_at": "2025-10-25T00:00:00Z",
+  "completed_at": "2025-10-25T00:00:00Z",
+  "updated_at": "2025-10-25T00:00:00Z"
+}
+```
+
+## Delete Task
+
+```http
+DELETE  /api/admin/tasks/{task_id}
+```
+
+Request:
+
+```json
+Authorization: Bearer <access_token>
+```
+
+Response:
+
+```json
+{
+  "message": "Task deleted successfully."
+}
 ```
