@@ -1,29 +1,11 @@
 from datetime import datetime
-from enum import Enum as PyEnum
 
 from sqlalchemy import JSON, DateTime, Enum, Float, ForeignKey, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
 from lilycloudproto.database import Base
-
-
-class TaskType(str, PyEnum):
-    COPY = "copy"
-    MOVE = "move"
-    TRASH = "trash"
-    RESTORE = "restore"
-    DELETE = "delete"
-    UPLOAD = "upload"
-    DOWNLOAD = "download"
-
-
-class TaskStatus(str, PyEnum):
-    PENDING = "pending"
-    ARCHIVING = "archiving"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    FAILED = "failed"
+from lilycloudproto.domain.values.task import TaskStatus, TaskType
 
 
 class Task(Base):

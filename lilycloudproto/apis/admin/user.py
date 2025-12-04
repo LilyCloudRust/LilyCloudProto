@@ -3,9 +3,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from lilycloudproto.database import get_db
-from lilycloudproto.entities.user import User
+from lilycloudproto.domain.entities.user import User
 from lilycloudproto.error import ConflictError, NotFoundError
-from lilycloudproto.infra.user_repository import UserRepository
+from lilycloudproto.infra.repositories.user_repository import UserRepository
 from lilycloudproto.models.user import (
     UserCreate,
     UserListQuery,

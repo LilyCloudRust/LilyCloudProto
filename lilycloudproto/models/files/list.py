@@ -1,17 +1,7 @@
-from dataclasses import dataclass
-
 from pydantic import BaseModel
 
-from lilycloudproto.models.files.file import File
-from lilycloudproto.models.files.sort import SortBy, SortOrder
-
-
-@dataclass
-class ListArgs:
-    path: str
-    sort_by: SortBy = SortBy.NAME
-    sort_order: SortOrder = SortOrder.ASC
-    dir_first: bool = True
+from lilycloudproto.domain.values.files.file import File
+from lilycloudproto.domain.values.files.sort import SortBy, SortOrder
 
 
 class ListQuery(BaseModel):

@@ -4,9 +4,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from lilycloudproto.database import get_db
-from lilycloudproto.entities.storage import Storage, validate_config
+from lilycloudproto.domain.entities.storage import Storage
+from lilycloudproto.domain.values.storage import ListArgs, validate_config
 from lilycloudproto.error import ConflictError, NotFoundError, UnprocessableEntityError
-from lilycloudproto.infra.storage_repository import StorageRepository
+from lilycloudproto.infra.repositories.storage_repository import StorageRepository
 from lilycloudproto.models.storage import (
     StorageCreate,
     StorageListQuery,
@@ -63,17 +64,23 @@ async def get_storage(
 
 @router.get("", response_model=StorageListResponse)
 async def list_storages(
-    params: StorageListQuery = Depends(),
+    query: StorageListQuery = Depends(),
     db: AsyncSession = Depends(get_db),
 ) -> StorageListResponse:
     """List all storage configurations."""
     repo = StorageRepository(db)
-    storages = await repo.search(
-        params=params,
+    args = ListArgs(
+        keyword=query.keyword,
+        type=query.type,
+        sort_by=query.sort_by,
+        sort_order=query.sort_order,
+        page=query.page,
+        page_size=query.page_size,
     )
+    storages = await repo.search(args)
     total = await repo.count(
-        keyword=params.keyword,
-        type=params.type,
+        keyword=query.keyword,
+        type=query.type,
     )
     return StorageListResponse(
         items=[StorageResponse.model_validate(storage) for storage in storages],

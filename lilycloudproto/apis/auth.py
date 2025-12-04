@@ -6,9 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from lilycloudproto.config import auth_settings
 from lilycloudproto.database import get_db
-from lilycloudproto.entities.user import User
-from lilycloudproto.infra.auth_service import AuthService
-from lilycloudproto.infra.user_repository import UserRepository
+from lilycloudproto.domain.entities.user import User
+from lilycloudproto.infra.repositories.user_repository import UserRepository
+from lilycloudproto.infra.services.auth_service import AuthService
 from lilycloudproto.models.auth import (
     LoginRequest,
     LoginResponse,

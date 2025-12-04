@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 
-from lilycloudproto.models.files.file import File
-from lilycloudproto.models.files.list import ListArgs
-from lilycloudproto.models.files.search import SearchArgs
+from lilycloudproto.domain.values.files.file import File
+from lilycloudproto.domain.values.files.list import ListArgs
+from lilycloudproto.domain.values.files.search import SearchArgs
 
 
 class Driver(ABC):

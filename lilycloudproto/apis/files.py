@@ -1,10 +1,14 @@
 from fastapi import APIRouter, Depends, Query
 
-from lilycloudproto.infra.driver import Driver
+from lilycloudproto.domain.driver import Driver
+from lilycloudproto.domain.values.files.file import File
+from lilycloudproto.domain.values.files.list import ListArgs
+from lilycloudproto.domain.values.files.search import (
+    SearchArgs,
+)
 from lilycloudproto.infra.drivers.local_driver import LocalDriver
-from lilycloudproto.models.files.file import File
-from lilycloudproto.models.files.list import ListArgs, ListQuery, ListResponse
-from lilycloudproto.models.files.search import SearchArgs, SearchQuery, SearchResponse
+from lilycloudproto.models.files.list import ListQuery, ListResponse
+from lilycloudproto.models.files.search import SearchQuery, SearchResponse
 
 router = APIRouter(prefix="/api/files", tags=["Files"])
 

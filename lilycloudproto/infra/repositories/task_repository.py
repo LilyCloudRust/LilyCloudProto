@@ -1,7 +1,7 @@
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from lilycloudproto.entities.task import Task
+from lilycloudproto.domain.entities.task import Task
 
 
 class TaskRepository:
