@@ -2,7 +2,7 @@ from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from lilycloudproto.entities.user import User
+from lilycloudproto.domain.entities.user import User
 
 
 class UserRepository:

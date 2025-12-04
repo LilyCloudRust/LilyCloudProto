@@ -1,7 +1,7 @@
 from sqlalchemy import asc, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from lilycloudproto.entities.storage import Storage, StorageType
+from lilycloudproto.domain.entities.storage import Storage, StorageType
 from lilycloudproto.models.storage import SortOrder, StorageListQuery, StorageSortField
 
 

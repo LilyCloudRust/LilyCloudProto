@@ -4,9 +4,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from lilycloudproto.database import get_db
-from lilycloudproto.entities.storage import Storage, validate_config
+from lilycloudproto.domain.entities.storage import Storage, validate_config
 from lilycloudproto.error import ConflictError, NotFoundError, UnprocessableEntityError
-from lilycloudproto.infra.storage_repository import StorageRepository
+from lilycloudproto.infra.repositories.storage_repository import StorageRepository
 from lilycloudproto.models.storage import (
     StorageCreate,
     StorageListQuery,

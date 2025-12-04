@@ -7,9 +7,9 @@ from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
 
 from lilycloudproto.config import AuthSettings
-from lilycloudproto.entities.user import User
+from lilycloudproto.domain.entities.user import User
 from lilycloudproto.error import AuthenticationError
-from lilycloudproto.infra.user_repository import UserRepository
+from lilycloudproto.infra.repositories.user_repository import UserRepository
 
 
 class Payload(BaseModel):

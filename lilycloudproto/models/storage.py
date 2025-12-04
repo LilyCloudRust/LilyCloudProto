@@ -4,7 +4,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from lilycloudproto.entities.storage import (
+from lilycloudproto.domain.entities.storage import (
     StorageConfig,
     StorageType,
 )

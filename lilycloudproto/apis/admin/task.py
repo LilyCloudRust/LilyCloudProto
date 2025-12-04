@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from lilycloudproto.database import get_db
 from lilycloudproto.error import NotFoundError
-from lilycloudproto.infra.task_repository import TaskRepository
+from lilycloudproto.infra.repositories.task_repository import TaskRepository
 from lilycloudproto.models.task import (
     TaskListQuery,
     TaskListResponse,

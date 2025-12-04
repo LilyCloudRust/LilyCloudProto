@@ -6,8 +6,8 @@ from typing import override
 
 import magic
 
+from lilycloudproto.domain.driver import Driver
 from lilycloudproto.error import BadRequestError, NotFoundError
-from lilycloudproto.infra.driver import Driver
 from lilycloudproto.models.files.file import File, Type
 from lilycloudproto.models.files.list import ListArgs
 from lilycloudproto.models.files.search import SearchArgs

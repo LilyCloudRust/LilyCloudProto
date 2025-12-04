@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query
 
-from lilycloudproto.infra.driver import Driver
+from lilycloudproto.domain.driver import Driver
 from lilycloudproto.infra.drivers.local_driver import LocalDriver
 from lilycloudproto.models.files.file import File
 from lilycloudproto.models.files.list import ListArgs, ListQuery, ListResponse
