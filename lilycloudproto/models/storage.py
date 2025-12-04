@@ -1,26 +1,14 @@
 from datetime import datetime
-from enum import Enum
 from typing import ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from lilycloudproto.domain.entities.storage import (
+from lilycloudproto.domain.values.storage import (
+    SortBy,
+    SortOrder,
     StorageConfig,
     StorageType,
 )
-
-
-class SortOrder(str, Enum):
-    ASC = "asc"
-    DESC = "desc"
-
-
-class SortBy(str, Enum):
-    CREATED_AT = "created_at"
-    UPDATED_AT = "updated_at"
-    MOUNT_PATH = "mount_path"
-    TYPE = "type"
-    ENABLED = "enabled"
 
 
 class StorageCreate(BaseModel):

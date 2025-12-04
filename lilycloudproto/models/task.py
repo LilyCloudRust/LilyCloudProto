@@ -3,7 +3,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from lilycloudproto.domain.entities.task import TaskStatus, TaskType
+from lilycloudproto.domain.values.task import TaskStatus, TaskType
 
 
 class TaskBase(BaseModel):

@@ -1,8 +1,13 @@
 from sqlalchemy import asc, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from lilycloudproto.domain.entities.storage import Storage, StorageType
-from lilycloudproto.models.storage import SortBy, SortOrder, StorageListQuery
+from lilycloudproto.domain.entities.storage import Storage
+from lilycloudproto.domain.values.storage import (
+    ListArgs,
+    SortBy,
+    SortOrder,
+    StorageType,
+)
 
 
 class StorageRepository:
@@ -33,17 +38,17 @@ class StorageRepository:
 
     async def search(
         self,
-        params: StorageListQuery,
+        args: ListArgs,
     ) -> list[Storage]:
         """Search for storage configurations by keyword or type."""
-        offset = (params.page - 1) * params.page_size
+        offset = (args.page - 1) * args.page_size
         statement = select(Storage)
-        if params.keyword:
-            statement = statement.where(Storage.mount_path.contains(params.keyword))
-        if params.type:
-            statement = statement.where(Storage.type == params.type)
+        if args.keyword:
+            statement = statement.where(Storage.mount_path.contains(args.keyword))
+        if args.type:
+            statement = statement.where(Storage.type == args.type)
 
-        # Apply sorting
+        # Apply sorting.
         field_map = {
             SortBy.CREATED_AT: Storage.created_at,
             SortBy.UPDATED_AT: Storage.updated_at,
@@ -52,16 +57,16 @@ class StorageRepository:
             SortBy.ENABLED: Storage.enabled,
         }
 
-        sort_column = field_map.get(params.sort_by, Storage.created_at)
-        if params.sort_order == SortOrder.DESC:
+        sort_column = field_map.get(args.sort_by, Storage.created_at)
+        if args.sort_order == SortOrder.DESC:
             statement = statement.order_by(desc(sort_column))
         else:
             statement = statement.order_by(asc(sort_column))
 
-        # Always order by ID for consistent pagination
+        # Always order by ID for consistent pagination.
         statement = statement.order_by(Storage.storage_id)
 
-        statement = statement.offset(offset).limit(params.page_size)
+        statement = statement.offset(offset).limit(args.page_size)
         result = await self.db.execute(statement)
         return list(result.scalars().all())
 
