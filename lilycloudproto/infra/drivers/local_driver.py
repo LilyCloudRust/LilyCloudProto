@@ -7,11 +7,11 @@ from typing import override
 import magic
 
 from lilycloudproto.domain.driver import Driver
+from lilycloudproto.domain.values.files.file import File, Type
+from lilycloudproto.domain.values.files.list import ListArgs
+from lilycloudproto.domain.values.files.search import SearchArgs
+from lilycloudproto.domain.values.files.sort import SortArgs
 from lilycloudproto.error import BadRequestError, NotFoundError
-from lilycloudproto.models.files.file import File, Type
-from lilycloudproto.models.files.list import ListArgs
-from lilycloudproto.models.files.search import SearchArgs
-from lilycloudproto.models.files.sort import SortArgs
 
 
 class LocalDriver(Driver):

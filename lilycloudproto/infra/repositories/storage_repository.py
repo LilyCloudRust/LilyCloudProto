@@ -2,7 +2,7 @@ from sqlalchemy import asc, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from lilycloudproto.domain.entities.storage import Storage, StorageType
-from lilycloudproto.models.storage import SortOrder, StorageListQuery, StorageSortField
+from lilycloudproto.models.storage import SortBy, SortOrder, StorageListQuery
 
 
 class StorageRepository:
@@ -45,11 +45,11 @@ class StorageRepository:
 
         # Apply sorting
         field_map = {
-            StorageSortField.CREATED_AT: Storage.created_at,
-            StorageSortField.UPDATED_AT: Storage.updated_at,
-            StorageSortField.MOUNT_PATH: Storage.mount_path,
-            StorageSortField.TYPE: Storage.type,
-            StorageSortField.ENABLED: Storage.enabled,
+            SortBy.CREATED_AT: Storage.created_at,
+            SortBy.UPDATED_AT: Storage.updated_at,
+            SortBy.MOUNT_PATH: Storage.mount_path,
+            SortBy.TYPE: Storage.type,
+            SortBy.ENABLED: Storage.enabled,
         }
 
         sort_column = field_map.get(params.sort_by, Storage.created_at)
