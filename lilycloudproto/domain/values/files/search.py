@@ -1,10 +1,11 @@
-from pydantic import BaseModel
+from dataclasses import dataclass
 
-from lilycloudproto.domain.values.files.file import File, Type
+from lilycloudproto.domain.values.files.file import Type
 from lilycloudproto.domain.values.files.sort import SortBy, SortOrder
 
 
-class SearchQuery(BaseModel):
+@dataclass
+class SearchArgs:
     keyword: str
     path: str
     recursive: bool = True
@@ -13,9 +14,3 @@ class SearchQuery(BaseModel):
     sort_by: SortBy = SortBy.NAME
     sort_order: SortOrder = SortOrder.ASC
     dir_first: bool = True
-
-
-class SearchResponse(BaseModel):
-    path: str
-    total: int
-    items: list[File]

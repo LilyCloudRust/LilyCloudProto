@@ -1,26 +1,14 @@
 from datetime import datetime
-from enum import Enum
 from typing import ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from lilycloudproto.entities.storage import (
+from lilycloudproto.domain.values.storage import (
+    SortBy,
+    SortOrder,
     StorageConfig,
     StorageType,
 )
-
-
-class SortOrder(str, Enum):
-    ASC = "asc"
-    DESC = "desc"
-
-
-class StorageSortField(str, Enum):
-    CREATED_AT = "created_at"
-    UPDATED_AT = "updated_at"
-    MOUNT_PATH = "mount_path"
-    TYPE = "type"
-    ENABLED = "enabled"
 
 
 class StorageCreate(BaseModel):
@@ -57,7 +45,7 @@ class StorageListResponse(BaseModel):
 class StorageListQuery(BaseModel):
     keyword: str | None = Field(None)
     type: StorageType | None = Field(None)
-    sort_by: StorageSortField = Field(StorageSortField.CREATED_AT)
+    sort_by: SortBy = Field(SortBy.CREATED_AT)
     sort_order: SortOrder = Field(SortOrder.DESC)
     page: int = Field(1, ge=1)
     page_size: int = Field(20, ge=1, le=100)
