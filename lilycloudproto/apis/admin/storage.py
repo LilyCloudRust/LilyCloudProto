@@ -16,7 +16,7 @@ from lilycloudproto.models.storage import (
     StorageUpdate,
 )
 
-router = APIRouter(prefix="/api/admin/storages", tags=["Admin"])
+router = APIRouter(prefix="/api/admin/storages", tags=["Admin/Storages"])
 
 
 @router.post("", response_model=StorageResponse, status_code=status.HTTP_201_CREATED)
