@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from collections.abc import Awaitable, Callable
 
 from lilycloudproto.domain.values.files.file import File
 from lilycloudproto.domain.values.files.list import ListArgs
@@ -16,4 +17,37 @@ class Driver(ABC):
 
     @abstractmethod
     def search(self, args: SearchArgs) -> list[File]:
+        pass
+
+    @abstractmethod
+    def mkdir(self, path: str, parents: bool = False) -> File:
+        pass
+
+    @abstractmethod
+    async def copy(
+        self,
+        src_dir: str,
+        dst_dir: str,
+        file_names: list[str],
+        progress_callback: Callable[[int, int], Awaitable[None]] | None = None,
+    ) -> None:
+        pass
+
+    @abstractmethod
+    async def move(
+        self,
+        src_dir: str,
+        dst_dir: str,
+        file_names: list[str],
+        progress_callback: Callable[[int, int], Awaitable[None]] | None = None,
+    ) -> None:
+        pass
+
+    @abstractmethod
+    async def delete(
+        self,
+        dir: str,
+        file_names: list[str],
+        progress_callback: Callable[[int, int], Awaitable[None]] | None = None,
+    ) -> None:
         pass
