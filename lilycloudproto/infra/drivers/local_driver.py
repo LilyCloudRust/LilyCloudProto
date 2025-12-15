@@ -178,6 +178,7 @@ class LocalDriver(Driver):
             await asyncio.sleep(0)
 
     def _validate_directory(self, dir: str) -> None:
+        dir = os.path.normpath(dir)
         if not os.path.exists(dir) or os.path.islink(dir) or os.path.isjunction(dir):
             # Ignore symbolic links due to security reason for now.
             raise NotFoundError(f"Directory '{dir}' not found.")
@@ -185,6 +186,7 @@ class LocalDriver(Driver):
             raise BadRequestError(f"Path '{dir}' is not a directory.")
 
     def _validate_path(self, file: str) -> bool:
+        file = os.path.normpath(file)
         return (
             os.path.exists(file)
             and not os.path.islink(file)
