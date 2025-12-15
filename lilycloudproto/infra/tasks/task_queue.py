@@ -22,6 +22,3 @@ class TaskQueue:
     def task_done(self) -> None:
         """Mark the current task as completed."""
         self._queue.task_done()
-
-
-task_queue = TaskQueue()
