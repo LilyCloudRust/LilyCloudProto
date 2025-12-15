@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -12,14 +13,37 @@ from lilycloudproto.apis.admin.task import router as admin_task_router
 from lilycloudproto.apis.admin.user import router as admin_user_router
 from lilycloudproto.apis.auth import router as auth_router
 from lilycloudproto.apis.files import router as files_router
-from lilycloudproto.database import init_db
+from lilycloudproto.database import AsyncSessionLocal, init_db
 from lilycloudproto.error import TeapotError, register_error_handlers
+from lilycloudproto.infra.repositories.storage_repository import StorageRepository
+from lilycloudproto.infra.repositories.task_repository import TaskRepository
+from lilycloudproto.infra.services.storage_service import StorageService
+from lilycloudproto.infra.services.task_service import TaskService
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
+async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     await init_db()
-    yield
+    # Create StorageService and TaskWorker singletons.
+    session_factory = AsyncSessionLocal
+    async with session_factory() as session:
+        # Create StorageService singleton.
+        storage_repo = StorageRepository(session)
+        storage_service = StorageService(storage_repo)
+        app.state.storage_service = storage_service
+
+        # Create TaskService singleton.
+        task_repo = TaskRepository(session)
+        task_service = TaskService(task_repo, AsyncSessionLocal, storage_service)
+        app.state.task_service = task_service
+
+        # Start the task worker service.
+        background_task = asyncio.create_task(task_service.start())
+        try:
+            yield
+        finally:
+            await task_service.stop()
+            _ = background_task.cancel()
 
 
 app = FastAPI(title="Lily Cloud Prototype API", lifespan=lifespan)
