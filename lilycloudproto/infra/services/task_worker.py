@@ -1,10 +1,12 @@
 import asyncio
 import logging
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from lilycloudproto.domain.entities.task import Task
 from lilycloudproto.domain.values.task import TaskStatus, TaskType
 from lilycloudproto.error import BadRequestError, NotFoundError
 from lilycloudproto.infra.repositories.task_repository import TaskRepository
@@ -21,8 +23,15 @@ class TaskPayload:
 class TaskWorker:
     session_factory: async_sessionmaker[AsyncSession]
     storage_service: StorageService
-    task_queue: asyncio.Queue[TaskPayload]
+    _queue: asyncio.Queue[TaskPayload]
     _running: bool
+    _handlers: dict[
+        TaskType,
+        Callable[
+            [Task, Callable[[int, int], Awaitable[None]]],
+            Awaitable[None],
+        ],
+    ]
 
     def __init__(
         self,
@@ -31,8 +40,13 @@ class TaskWorker:
     ) -> None:
         self.session_factory = session_factory
         self.storage_service = storage_service
-        self.task_queue = asyncio.Queue()
+        self._queue = asyncio.Queue()
         self._running = False
+        self._handlers = {
+            TaskType.COPY: self._handle_copy,
+            TaskType.MOVE: self._handle_move,
+            TaskType.DELETE: self._handle_delete,
+        }
 
     async def start(self) -> None:
         """Start the worker loop."""
@@ -40,21 +54,21 @@ class TaskWorker:
         logger.info("Background task worker started.")
         while self._running:
             # Wait for a task.
-            payload = await self.task_queue.get()
+            payload = await self._queue.get()
             task_id = payload.task_id
             try:
                 await self._process_task(task_id)
             except Exception as error:
                 logger.error(f"Unexpected error in worker for task {task_id}: {error}")
             finally:
-                self.task_queue.task_done()
+                self._queue.task_done()
 
     async def stop(self) -> None:
         """Stop the worker loop."""
         self._running = False
 
     async def add_task(self, task_id: int) -> None:
-        await self.task_queue.put(TaskPayload(task_id))
+        await self._queue.put(TaskPayload(task_id))
 
     async def _process_task(self, task_id: int) -> None:
         async with self.session_factory() as session:
@@ -75,50 +89,11 @@ class TaskWorker:
                 _ = await repo.update(task)
 
             try:
-                driver = self.storage_service.get_driver(
-                    task.src_dir or task.dst_dirs[0]
-                )
-                src_dir = None
-                if task.src_dir:
-                    src_dir = self.storage_service.get_physical_path(task.src_dir)
-                dst_dirs = self.storage_service.get_physical_paths(task.dst_dirs)
+                handler = self._handlers.get(task.type)
+                if handler is None:
+                    raise BadRequestError(f"Unsupported task type '{task.type}'.")
 
-                if task.type == TaskType.COPY:
-                    if src_dir is None:
-                        raise BadRequestError(
-                            f"Source directory is required for COPY task '{task_id}'."
-                        )
-                    await driver.copy(
-                        src_dir,
-                        dst_dirs[0],
-                        task.file_names,
-                        progress_callback,
-                    )
-                    pass
-
-                elif task.type == TaskType.MOVE:
-                    if src_dir is None:
-                        raise BadRequestError(
-                            f"Source directory is required for MOVE task '{task_id}'."
-                        )
-                    await driver.move(
-                        src_dir,
-                        dst_dirs[0],
-                        task.file_names,
-                        progress_callback,
-                    )
-                    pass
-
-                elif task.type == TaskType.DELETE:
-                    if src_dir is None:
-                        raise BadRequestError(
-                            f"Source directory is required for DELETE task '{task_id}'."
-                        )
-                    await driver.delete(
-                        src_dir,
-                        task.file_names,
-                        progress_callback,
-                    )
+                await handler(task, progress_callback)
 
                 # Mark task as completed.
                 task.status = TaskStatus.COMPLETED
@@ -132,3 +107,46 @@ class TaskWorker:
                 task.message = str(error)
                 task.completed_at = datetime.now(UTC)
                 _ = await repo.update(task)
+
+    async def _handle_copy(
+        self,
+        task: Task,
+        progress_callback: Callable[[int, int], Awaitable[None]],
+    ) -> None:
+        driver = self.storage_service.get_driver(task.src_dir or task.dst_dirs[0])
+        if task.src_dir is None:
+            raise BadRequestError(
+                f"Source directory is required for COPY task '{task.task_id}'."
+            )
+        src_dir = self.storage_service.get_physical_path(task.src_dir)
+        dst_dirs = self.storage_service.get_physical_paths(task.dst_dirs)
+        await driver.copy(src_dir, dst_dirs[0], task.file_names, progress_callback)
+
+    async def _handle_move(
+        self,
+        task: Task,
+        progress_callback: Callable[[int, int], Awaitable[None]],
+    ) -> None:
+        driver = self.storage_service.get_driver(task.src_dir or task.dst_dirs[0])
+        if task.src_dir is None:
+            raise BadRequestError(
+                f"Source directory is required for MOVE task '{task.task_id}'."
+            )
+        src_dir = self.storage_service.get_physical_path(task.src_dir)
+        dst_dirs = self.storage_service.get_physical_paths(task.dst_dirs)
+        await driver.move(src_dir, dst_dirs[0], task.file_names, progress_callback)
+
+    async def _handle_delete(
+        self,
+        task: Task,
+        progress_callback: Callable[[int, int], Awaitable[None]],
+    ) -> None:
+        driver = self.storage_service.get_driver(
+            task.src_dir or (task.dst_dirs[0] if task.dst_dirs else "")
+        )
+        if task.src_dir is None:
+            raise BadRequestError(
+                f"Source directory is required for DELETE task '{task.task_id}'."
+            )
+        src_dir = self.storage_service.get_physical_path(task.src_dir)
+        await driver.delete(src_dir, task.file_names, progress_callback)
