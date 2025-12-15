@@ -4,12 +4,12 @@ from lilycloudproto.domain.entities.task import Task
 from lilycloudproto.domain.values.task import TaskStatus, TaskType
 from lilycloudproto.infra.repositories.task_repository import TaskRepository
 from lilycloudproto.infra.services.storage_service import StorageService
-from lilycloudproto.infra.tasks.task_worker import TaskWorker
+from lilycloudproto.infra.services.task_worker import TaskWorker
 
 
 class TaskService:
     task_repo: TaskRepository
-    worker: TaskWorker
+    task_worker: TaskWorker
 
     def __init__(
         self,
@@ -18,13 +18,13 @@ class TaskService:
         storage_service: StorageService,
     ):
         self.task_repo = task_repo
-        self.worker = TaskWorker(session_factory, storage_service)
+        self.task_worker = TaskWorker(session_factory, storage_service)
 
     async def start(self) -> None:
-        await self.worker.start()
+        await self.task_worker.start()
 
     async def stop(self) -> None:
-        await self.worker.stop()
+        await self.task_worker.stop()
 
     async def add_task(
         self,
@@ -45,5 +45,5 @@ class TaskService:
             message="",
         )
         task = await self.task_repo.create(task)
-        await self.worker.add_task(task.task_id)
+        await self.task_worker.add_task(task.task_id)
         return task

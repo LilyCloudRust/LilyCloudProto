@@ -1,4 +1,6 @@
+import asyncio
 import logging
+from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -7,15 +9,19 @@ from lilycloudproto.domain.values.task import TaskStatus, TaskType
 from lilycloudproto.error import BadRequestError, NotFoundError
 from lilycloudproto.infra.repositories.task_repository import TaskRepository
 from lilycloudproto.infra.services.storage_service import StorageService
-from lilycloudproto.infra.tasks.task_queue import TaskQueue
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class TaskPayload:
+    task_id: int
 
 
 class TaskWorker:
     session_factory: async_sessionmaker[AsyncSession]
     storage_service: StorageService
-    task_queue: TaskQueue
+    task_queue: asyncio.Queue[TaskPayload]
     _running: bool
 
     def __init__(
@@ -25,7 +31,7 @@ class TaskWorker:
     ) -> None:
         self.session_factory = session_factory
         self.storage_service = storage_service
-        self.task_queue = TaskQueue()
+        self.task_queue = asyncio.Queue()
         self._running = False
 
     async def start(self) -> None:
@@ -34,7 +40,7 @@ class TaskWorker:
         logger.info("Background task worker started.")
         while self._running:
             # Wait for a task.
-            payload = await self.task_queue.dequeue()
+            payload = await self.task_queue.get()
             task_id = payload.task_id
             try:
                 await self._process_task(task_id)
@@ -48,7 +54,7 @@ class TaskWorker:
         self._running = False
 
     async def add_task(self, task_id: int) -> None:
-        await self.task_queue.enqueue(task_id)
+        await self.task_queue.put(TaskPayload(task_id))
 
     async def _process_task(self, task_id: int) -> None:
         async with self.session_factory() as session:
