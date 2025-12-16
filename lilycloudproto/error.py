@@ -33,6 +33,12 @@ class UnprocessableEntityError(Exception):
     pass
 
 
+class InternalServerError(Exception):
+    """Raised when an internal server error occurs."""
+
+    pass
+
+
 class TeapotError(Exception):
     """Raised when the server is a teapot and refuses to brew coffee."""
 
@@ -53,24 +59,6 @@ def register_error_handlers(app: FastAPI) -> None:
     ) -> None:
         raise HTTPException(status_code=400, detail=str(exception))
 
-    @app.exception_handler(NotFoundError)
-    async def not_found_handler(_request: Request, exception: NotFoundError) -> None:
-        raise HTTPException(status_code=404, detail=str(exception))
-
-    @app.exception_handler(ConflictError)
-    async def conflict_handler(_request: Request, exception: ConflictError) -> None:
-        raise HTTPException(status_code=409, detail=str(exception))
-
-    @app.exception_handler(UnprocessableEntityError)
-    async def unprocessable_entity_handler(
-        _request: Request, exception: UnprocessableEntityError
-    ) -> None:
-        raise HTTPException(status_code=422, detail=str(exception))
-
-    @app.exception_handler(TeapotError)
-    async def teapot_handler(_request: Request, exception: TeapotError) -> None:
-        raise HTTPException(status_code=418, detail=str(exception))
-
     @app.exception_handler(AuthenticationError)
     async def authentication_handler(
         _request: Request, exception: AuthenticationError
@@ -80,3 +68,27 @@ def register_error_handlers(app: FastAPI) -> None:
             detail=str(exception),
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    @app.exception_handler(NotFoundError)
+    async def not_found_handler(_request: Request, exception: NotFoundError) -> None:
+        raise HTTPException(status_code=404, detail=str(exception))
+
+    @app.exception_handler(ConflictError)
+    async def conflict_handler(_request: Request, exception: ConflictError) -> None:
+        raise HTTPException(status_code=409, detail=str(exception))
+
+    @app.exception_handler(TeapotError)
+    async def teapot_handler(_request: Request, exception: TeapotError) -> None:
+        raise HTTPException(status_code=418, detail=str(exception))
+
+    @app.exception_handler(UnprocessableEntityError)
+    async def unprocessable_entity_handler(
+        _request: Request, exception: UnprocessableEntityError
+    ) -> None:
+        raise HTTPException(status_code=422, detail=str(exception))
+
+    @app.exception_handler(InternalServerError)
+    async def internal_server_error_handler(
+        _request: Request, exception: InternalServerError
+    ) -> None:
+        raise HTTPException(status_code=500, detail=str(exception))

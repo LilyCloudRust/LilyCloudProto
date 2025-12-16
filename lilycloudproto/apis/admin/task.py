@@ -11,7 +11,7 @@ from lilycloudproto.models.task import (
     TaskUpdate,
 )
 
-router = APIRouter(prefix="/api/admin/tasks", tags=["Admin"])
+router = APIRouter(prefix="/api/admin/tasks", tags=["Admin/Tasks"])
 
 
 @router.get("", response_model=TaskListResponse)

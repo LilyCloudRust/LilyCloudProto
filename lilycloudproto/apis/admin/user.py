@@ -14,7 +14,7 @@ from lilycloudproto.models.user import (
     UserUpdate,
 )
 
-router = APIRouter(prefix="/api/admin/users", tags=["Admin"])
+router = APIRouter(prefix="/api/admin/users", tags=["Admin/Users"])
 
 
 @router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
