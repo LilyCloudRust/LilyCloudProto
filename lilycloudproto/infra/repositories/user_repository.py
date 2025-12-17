@@ -1,8 +1,12 @@
-from sqlalchemy import func
+from sqlalchemy import asc, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 
 from lilycloudproto.domain.entities.user import User
+from lilycloudproto.domain.values.user import (
+    ListArgs,
+    SortBy,
+    SortOrder,
+)
 
 
 class UserRepository:
@@ -39,28 +43,41 @@ class UserRepository:
         result = await self.db.execute(statement.offset(offset).limit(page_size))
         return list(result.scalars().all())
 
-    async def search(
-        self, keyword: str | None = None, page: int = 1, page_size: int = 20
-    ) -> list[User]:
-        """Search for users by keyword with pagination."""
-        offset = (page - 1) * page_size
+    async def search(self, args: ListArgs) -> list[User]:
+        """Search for users based on query parameters."""
+        offset = (args.page - 1) * args.page_size
         statement = select(User)
-        if keyword:
-            statement = statement.where(User.username.contains(keyword))
 
-        statement = statement.offset(offset).limit(page_size)
+        if args.keyword:
+            statement = statement.where(User.username.contains(args.keyword))
+
+        field_map = {
+            SortBy.USERNAME: User.username,
+            SortBy.CREATED_AT: User.created_at,
+            SortBy.UPDATED_AT: User.updated_at,
+        }
+        sort_column = field_map.get(args.sort_by, User.created_at)
+
+        if args.sort_order == SortOrder.DESC:
+            statement = statement.order_by(desc(sort_column))
+        else:
+            statement = statement.order_by(asc(sort_column))
+
+        statement = statement.order_by(User.user_id)
+        statement = statement.offset(offset).limit(args.page_size)
+
         result = await self.db.execute(statement)
         return list(result.scalars().all())
 
-    async def count(self, keyword: str | None = None) -> int:
-        """Count users with optional keyword search."""
-        statement = select(User)
-        if keyword:
-            statement = statement.where(User.username.contains(keyword))
+    async def count(self, args: ListArgs) -> int:
+        """Count users based on query parameters."""
+        statement = select(func.count()).select_from(User)
 
-        count_statement = select(func.count()).select_from(statement.subquery())
-        total_count = (await self.db.execute(count_statement)).scalar_one()
-        return total_count
+        if args.keyword:
+            statement = statement.where(User.username.contains(args.keyword))
+
+        result = await self.db.execute(statement)
+        return result.scalar_one() or 0
 
     async def update(self, user: User) -> User:
         """Update a user's information."""

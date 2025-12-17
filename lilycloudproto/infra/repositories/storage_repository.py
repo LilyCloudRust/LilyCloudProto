@@ -6,7 +6,6 @@ from lilycloudproto.domain.values.storage import (
     ListArgs,
     SortBy,
     SortOrder,
-    StorageType,
 )
 
 
@@ -43,12 +42,16 @@ class StorageRepository:
         """Search for storage configurations by keyword or type."""
         offset = (args.page - 1) * args.page_size
         statement = select(Storage)
+
         if args.keyword:
             statement = statement.where(Storage.mount_path.contains(args.keyword))
         if args.type:
             statement = statement.where(Storage.type == args.type)
 
-        # Apply sorting.
+        # Enabled First Logic
+        if args.enabled_first:
+            statement = statement.order_by(desc(Storage.enabled))
+
         field_map = {
             SortBy.CREATED_AT: Storage.created_at,
             SortBy.UPDATED_AT: Storage.updated_at,
@@ -63,28 +66,25 @@ class StorageRepository:
         else:
             statement = statement.order_by(asc(sort_column))
 
-        # Always order by ID for consistent pagination.
         statement = statement.order_by(Storage.storage_id)
-
         statement = statement.offset(offset).limit(args.page_size)
         result = await self.db.execute(statement)
         return list(result.scalars().all())
 
     async def count(
         self,
-        keyword: str | None = None,
-        type: StorageType | None = None,
+        args: ListArgs,
     ) -> int:
         """Count storage configurations with optional filters."""
-        statement = select(Storage)
-        if keyword:
-            statement = statement.where(Storage.mount_path.contains(keyword))
-        if type:
-            statement = statement.where(Storage.type == type)
+        statement = select(func.count()).select_from(Storage)
 
-        count_statement = select(func.count()).select_from(statement.subquery())
-        total_count = (await self.db.execute(count_statement)).scalar_one()
-        return total_count
+        if args.keyword:
+            statement = statement.where(Storage.mount_path.contains(args.keyword))
+        if args.type:
+            statement = statement.where(Storage.type == args.type)
+
+        result = await self.db.execute(statement)
+        return result.scalar_one() or 0
 
     async def update(self, storage: Storage) -> Storage:
         """Update a storage configuration."""

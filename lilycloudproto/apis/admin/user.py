@@ -4,9 +4,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from lilycloudproto.database import get_db
 from lilycloudproto.domain.entities.user import User
+from lilycloudproto.domain.values.user import ListArgs
 from lilycloudproto.error import ConflictError, NotFoundError
 from lilycloudproto.infra.repositories.user_repository import UserRepository
 from lilycloudproto.models.user import (
+    MessageResponse,
     UserCreate,
     UserListQuery,
     UserListResponse,
@@ -48,20 +50,27 @@ async def get_user(
 
 @router.get("", response_model=UserListResponse)
 async def list_users(
-    params: UserListQuery = Depends(),
+    query: UserListQuery = Depends(),
     db: AsyncSession = Depends(get_db),
 ) -> UserListResponse:
     """List all users with pagination and optional keyword search."""
     repo = UserRepository(db)
-    users = await repo.search(
-        keyword=params.keyword,
-        page=params.page,
-        page_size=params.page_size,
+    args = ListArgs(
+        keyword=query.keyword,
+        sort_by=query.sort_by,
+        sort_order=query.sort_order,
+        page=query.page,
+        page_size=query.page_size,
     )
-    total = await repo.count(keyword=params.keyword)
+
+    users = await repo.search(args)
+    total = await repo.count(args)
+
     return UserListResponse(
-        items=[UserResponse.model_validate(user) for user in users],
+        items=[UserResponse.model_validate(u) for u in users],
         total=total,
+        page=query.page,
+        page_size=query.page_size,
     )
 
 
@@ -88,14 +97,15 @@ async def update_user(
     return UserResponse.model_validate(updated)
 
 
-@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{user_id}", response_model=MessageResponse)
 async def delete_user(
     user_id: int,
     db: AsyncSession = Depends(get_db),
-) -> None:
+) -> MessageResponse:
     """Delete a user by ID."""
     repo = UserRepository(db)
     user = await repo.get_by_id(user_id)
     if not user:
         raise NotFoundError(f"User with ID '{user_id}' not found.")
     await repo.delete(user)
+    return MessageResponse(message="User deleted successfully.")

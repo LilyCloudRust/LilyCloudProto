@@ -57,5 +57,6 @@ class ListArgs:
     type: StorageType | None
     sort_by: SortBy
     sort_order: SortOrder
-    page: int
-    page_size: int
+    enabled_first: bool = True
+    page: int = 1
+    page_size: int = 20
