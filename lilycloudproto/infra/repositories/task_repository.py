@@ -1,4 +1,4 @@
-from sqlalchemy import asc, desc, func, select
+from sqlalchemy import String, asc, cast, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from lilycloudproto.domain.entities.task import Task
@@ -23,14 +23,6 @@ class TaskRepository:
         result = await self.db.execute(select(Task).where(Task.task_id == task_id))
         return result.scalar_one_or_none()
 
-    async def get_all(self, page: int = 1, page_size: int = 20) -> list[Task]:
-        """Retrieve all tasks with pagination."""
-        offset = (page - 1) * page_size
-        statement = select(Task)
-
-        result = await self.db.execute(statement.offset(offset).limit(page_size))
-        return list(result.scalars().all())
-
     async def search(
         self,
         args: ListArgs,
@@ -43,6 +35,8 @@ class TaskRepository:
             statement = statement.where(
                 (Task.message.contains(args.keyword))
                 | (Task.src_dir.contains(args.keyword))
+                | (cast(Task.dst_dirs, String).contains(args.keyword))
+                | (cast(Task.file_names, String).contains(args.keyword))
             )
         if args.user_id:
             statement = statement.where(Task.user_id == args.user_id)
@@ -84,6 +78,8 @@ class TaskRepository:
             statement = statement.where(
                 (Task.message.contains(args.keyword))
                 | (Task.src_dir.contains(args.keyword))
+                | (cast(Task.dst_dirs, String).contains(args.keyword))
+                | (cast(Task.file_names, String).contains(args.keyword))
             )
         if args.user_id:
             statement = statement.where(Task.user_id == args.user_id)

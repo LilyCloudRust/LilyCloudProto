@@ -35,14 +35,6 @@ class UserRepository:
         result = await self.db.execute(statement)
         return result.scalar_one_or_none()
 
-    async def get_all(self, page: int = 1, page_size: int = 20) -> list[User]:
-        """Retrieve all users with pagination."""
-        offset = (page - 1) * page_size
-        statement = select(User)
-
-        result = await self.db.execute(statement.offset(offset).limit(page_size))
-        return list(result.scalars().all())
-
     async def search(self, args: ListArgs) -> list[User]:
         """Search for users based on query parameters."""
         offset = (args.page - 1) * args.page_size

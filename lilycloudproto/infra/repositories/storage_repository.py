@@ -29,12 +29,6 @@ class StorageRepository:
         )
         return result.scalar_one_or_none()
 
-    async def get_all(self, page: int = 1, page_size: int = 20) -> list[Storage]:
-        """Retrieve all storage configurations with pagination."""
-        offset = (page - 1) * page_size
-        result = await self.db.execute(select(Storage).offset(offset).limit(page_size))
-        return list(result.scalars().all())
-
     async def search(
         self,
         args: ListArgs,
