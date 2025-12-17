@@ -22,6 +22,8 @@ dependencies = [
     "scalar_fastapi>=1.4.3",
     "sqlalchemy>=2.0.44",
     "uvicorn>=0.38.0",
+    "aiofiles>=25.1.0",
+    "python-multipart>=0.0.20",
 ]
 requires-python = ">=3.13"
 
