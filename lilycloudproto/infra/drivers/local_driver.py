@@ -6,7 +6,7 @@ from collections.abc import Awaitable, Callable, Generator
 from datetime import datetime
 from typing import override
 
-import magic
+import magic  # type: ignore[import-untyped]
 
 from lilycloudproto.domain.driver import Driver
 from lilycloudproto.domain.values.files.file import File, Type
@@ -198,9 +198,7 @@ class LocalDriver(Driver):
         if mime_type:
             return mime_type
         if os.path.isfile(path):
-            return magic.from_file(  # pyright: ignore[reportUnknownMemberType]
-                path, mime=True
-            )
+            return str(magic.from_file(path, mime=True))
         return "inode/directory"
 
     def _entry_to_file(self, entry: os.DirEntry[str]) -> File:

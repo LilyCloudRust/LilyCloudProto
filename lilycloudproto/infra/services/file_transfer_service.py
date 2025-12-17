@@ -1,39 +1,40 @@
-import os
 import io
-import uuid
+import os
 import zipfile
-from typing import List, Generator
+from collections.abc import AsyncGenerator
 from datetime import datetime
-import aiofiles
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
-from lilycloudproto.models.task import TaskResponse, TaskType, TaskStatus
+import aiofiles
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from lilycloudproto.domain.entities.task import Task
+from lilycloudproto.domain.values.task import TaskStatus, TaskType
 from lilycloudproto.infra.drivers.local_driver import LocalDriver
-from lilycloudproto.domain.entities.task import Task 
+from lilycloudproto.models.task import TaskResponse
+
 
 class FileTransferService:
-    def __init__(self, storage_driver: LocalDriver, db: AsyncSession):
+    def __init__(self, storage_driver: LocalDriver, db: AsyncSession) -> None:
         self.driver = storage_driver
         self.storage_root = os.path.abspath("./storage")
         self.db = db
 
     def _get_real_path(self, virtual_path: str) -> str:
-        """
-        路径安全检查：防止路径遍历攻击
-        """
         clean_path = virtual_path.lstrip("/\\")
         real_path = os.path.abspath(os.path.join(self.storage_root, clean_path))
-        
+
         if not real_path.startswith(self.storage_root):
             raise ValueError(f"Invalid path: {virtual_path}")
-            
+
         return real_path
 
-    async def create_upload_task(self, user_id: int, dst_dir: str, file_names: List[str]) -> TaskResponse:
+    async def create_upload_task(
+        self, user_id: int, dst_dir: str, file_names: list[str]
+    ) -> TaskResponse:
         now = datetime.now()
         task = Task(
-            task_id=None,  
+            task_id=None,
             user_id=user_id,
             type=TaskType.UPLOAD,
             src_dir=None,
@@ -44,14 +45,16 @@ class FileTransferService:
             message="Uploading...",
             created_at=now,
             started_at=now,
-            updated_at=now
+            updated_at=now,
         )
         self.db.add(task)
         await self.db.commit()
         await self.db.refresh(task)
         return TaskResponse(**task.__dict__)
 
-    async def process_upload_files(self, task_id: int, dst_dir: str, files: List[bytes], filenames: List[str]):
+    async def process_upload_files(
+        self, task_id: int, dst_dir: str, files: list[bytes], filenames: list[str]
+    ) -> None:
         stmt = select(Task).where(Task.task_id == task_id)
         result = await self.db.execute(stmt)
         task = result.scalar_one_or_none()
@@ -63,16 +66,17 @@ class FileTransferService:
             os.makedirs(target_dir, exist_ok=True)
 
             total = len(files)
-            for i, (content, name) in enumerate(zip(files, filenames)):
+            for i, (content, name) in enumerate(zip(files, filenames, strict=True)):
+
                 file_path = os.path.join(target_dir, name)
                 async with aiofiles.open(file_path, "wb") as f:
                     await f.write(content)
+
                 task.progress = ((i + 1) / total) * 100
-                task.updated_at = datetime.utcnow()
-                await self.db.commit()
+                task.updated_at = datetime.now()
 
             task.status = TaskStatus.COMPLETED
-            task.completed_at = datetime.utcnow()
+            task.completed_at = datetime.now()
             task.message = "Upload success"
             await self.db.commit()
 
@@ -81,8 +85,10 @@ class FileTransferService:
             task.message = str(e)
             await self.db.commit()
 
-    async def create_download_task(self, user_id: int, src_dir: str, file_names: List[str]) -> TaskResponse:
-        now = datetime.utcnow()
+    async def create_download_task(
+        self, user_id: int, src_dir: str, file_names: list[str]
+    ) -> TaskResponse:
+        now = datetime.now()
         real_base = self._get_real_path(src_dir)
         if not os.path.exists(real_base):
             raise FileNotFoundError(f"Directory {src_dir} not found")
@@ -97,7 +103,7 @@ class FileTransferService:
             progress=0.0,
             message="Ready to stream",
             created_at=now,
-            updated_at=now
+            updated_at=now,
         )
         self.db.add(task)
         await self.db.commit()
@@ -118,21 +124,21 @@ class FileTransferService:
             raise FileNotFoundError("File not found")
         return path
 
-    async def archive_stream_generator(self, task_id: int):
+    async def archive_stream_generator(self, task_id: int) -> AsyncGenerator[bytes]:
         task = await self.get_task(task_id)
         src_dir = task.src_dir or ""
         file_names = task.file_names
 
         task.status = TaskStatus.RUNNING
-        task.started_at = datetime.utcnow()
+        task.started_at = datetime.now()
         await self.db.commit()
 
         zip_buffer = io.BytesIO()
-        async with aiofiles.tempfile.TemporaryDirectory() as tmpdir:
+        async with aiofiles.tempfile.TemporaryDirectory():
             with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
                 total = len(file_names)
                 processed = 0
-                for fname in file_names:
+                for processed, fname in enumerate(file_names, start=1):
                     full_path = self._get_real_path(os.path.join(src_dir, fname))
                     try:
                         async with aiofiles.open(full_path, "rb") as f:
@@ -140,7 +146,6 @@ class FileTransferService:
                         zf.writestr(fname, data)
                     except Exception as e:
                         zf.writestr(f"{fname}.error.txt", f"Error: {e}")
-                    processed += 1
                     task.progress = (processed / total) * 100
                     await self.db.commit()
 
@@ -154,6 +159,6 @@ class FileTransferService:
             yield zip_buffer.read()
 
         task.status = TaskStatus.COMPLETED
-        task.completed_at = datetime.utcnow()
+        task.completed_at = datetime.now()
         task.progress = 100.0
         await self.db.commit()

@@ -51,3 +51,8 @@ lint.ignore = ["B008"]
 [tool.mypy]
 python_version = "3.13"
 strict = true
+
+[dependency-groups]
+dev = [
+    "types-aiofiles>=25.1.0.20251011",
+]
