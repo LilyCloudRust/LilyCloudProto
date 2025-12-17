@@ -5,6 +5,7 @@ POST    /api/auth/login
 POST    /api/auth/logout
 POST    /api/auth/register
 POST    /api/auth/refresh
+POST    /api/auth/share
 GET     /api/auth/whoami
 ```
 
@@ -87,9 +88,31 @@ POST    /api/auth/refresh
 Request:
 
 ```json
-Authorization: Bearer <access_token>
 {
   "refresh_token": "string"
+}
+```
+
+Response:
+
+```json
+{
+  "access_token": "string"
+}
+```
+
+## Login Via Share Token
+
+```http
+POST    /api/auth/share
+```
+
+Request:
+
+```json
+{
+  "share_token": "string",
+  "password": "string" // Optional.
 }
 ```
 

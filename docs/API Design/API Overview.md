@@ -15,6 +15,7 @@ POST    /api/auth/login
 POST    /api/auth/logout
 POST    /api/auth/register
 POST    /api/auth/refresh
+POST    /api/auth/share
 GET     /api/auth/whoami
 ```
 
@@ -57,6 +58,16 @@ DELETE  /api/files/trash
 GET     /api/files/tasks/{task_id}
 ```
 
+## File Sharing
+
+```http
+POST    /api/shares
+GET     /api/shares/{share_id}
+GET     /api/shares
+PATCH   /api/shares/{share_id}
+DELETE  /api/shares/{share_id}
+```
+
 ## Administration
 
 ### User Management
@@ -82,6 +93,7 @@ DELETE  /api/admin/storages/{storage_id}
 ### Task Management
 
 ```http
+POST    /api/admin/tasks
 GET     /api/admin/tasks
 PATCH   /api/admin/tasks/{task_id}
 DELETE  /api/admin/tasks/{task_id}
