@@ -17,16 +17,12 @@ from lilycloudproto.models.task import TaskResponse
 class FileTransferService:
     def __init__(self, storage_driver: LocalDriver, db: AsyncSession) -> None:
         self.driver = storage_driver
-        self.storage_root = os.path.abspath("./storage")
+        # self.storage_root = os.path.abspath("./storage")
         self.db = db
 
     def _get_real_path(self, virtual_path: str) -> str:
         clean_path = virtual_path.lstrip("/\\")
-        real_path = os.path.abspath(os.path.join(self.storage_root, clean_path))
-
-        if not real_path.startswith(self.storage_root):
-            raise ValueError(f"Invalid path: {virtual_path}")
-
+        real_path = os.path.abspath(clean_path)
         return real_path
 
     async def create_upload_task(
