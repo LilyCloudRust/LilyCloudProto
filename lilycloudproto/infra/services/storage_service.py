@@ -17,3 +17,7 @@ class StorageService:
 
     def get_physical_paths(self, paths: list[str]) -> list[str]:
         return paths
+
+    def get_trash_root(self) -> str:
+        # In a real app, this would be from config
+        return ".trash"

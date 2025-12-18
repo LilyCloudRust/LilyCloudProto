@@ -13,6 +13,7 @@ from lilycloudproto.apis.admin.task import router as admin_task_router
 from lilycloudproto.apis.admin.user import router as admin_user_router
 from lilycloudproto.apis.auth import router as auth_router
 from lilycloudproto.apis.files import router as files_router
+from lilycloudproto.apis.trash import router as trash_router
 from lilycloudproto.database import AsyncSessionLocal, init_db
 from lilycloudproto.error import TeapotError, register_error_handlers
 from lilycloudproto.infra.repositories.storage_repository import StorageRepository
@@ -56,6 +57,7 @@ app.include_router(admin_user_router)
 app.include_router(admin_storage_router)
 app.include_router(admin_task_router)
 app.include_router(files_router)
+app.include_router(trash_router)
 app.include_router(auth_router)
 
 
