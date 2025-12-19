@@ -9,6 +9,7 @@ from lilycloudproto.domain.values.storage import ListArgs, validate_config
 from lilycloudproto.error import ConflictError, NotFoundError, UnprocessableEntityError
 from lilycloudproto.infra.repositories.storage_repository import StorageRepository
 from lilycloudproto.models.storage import (
+    MessageResponse,
     StorageCreate,
     StorageListQuery,
     StorageListResponse,
@@ -74,17 +75,19 @@ async def list_storages(
         type=query.type,
         sort_by=query.sort_by,
         sort_order=query.sort_order,
+        enabled_first=query.enabled_first,
         page=query.page,
         page_size=query.page_size,
     )
+
     storages = await repo.search(args)
-    total = await repo.count(
-        keyword=query.keyword,
-        type=query.type,
-    )
+    total = await repo.count(args)
+
     return StorageListResponse(
         items=[StorageResponse.model_validate(storage) for storage in storages],
         total=total,
+        page=query.page,
+        page_size=query.page_size,
     )
 
 
@@ -122,14 +125,15 @@ async def update_storage(
     return StorageResponse.model_validate(updated)
 
 
-@router.delete("/{storage_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{storage_id}", response_model=MessageResponse)
 async def delete_storage(
     storage_id: int,
     db: AsyncSession = Depends(get_db),
-) -> None:
+) -> MessageResponse:
     """Delete a storage configuration."""
     repo = StorageRepository(db)
     storage = await repo.get_by_id(storage_id)
     if not storage:
         raise NotFoundError(f"Storage with ID '{storage_id}' not found.")
     await repo.delete(storage)
+    return MessageResponse(message="Storage deleted successfully.")

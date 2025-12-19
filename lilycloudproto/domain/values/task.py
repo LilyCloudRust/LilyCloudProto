@@ -20,10 +20,28 @@ class TaskStatus(str, Enum):
     FAILED = "failed"
 
 
+class SortBy(str, Enum):
+    TYPE = "type"
+    SRC = "src"
+    STATUS = "status"
+    CREATED_AT = "created"
+    STARTED_AT = "started"
+    COMPLETED_AT = "completed"
+    UPDATED_AT = "updated"
+
+
+class SortOrder(str, Enum):
+    ASC = "asc"
+    DESC = "desc"
+
+
 @dataclass
 class ListArgs:
     keyword: str | None
+    user_id: int | None
     type: TaskType | None
     status: TaskStatus | None
-    page: int
-    page_size: int
+    sort_by: SortBy
+    sort_order: SortOrder
+    page: int = 1
+    page_size: int = 20

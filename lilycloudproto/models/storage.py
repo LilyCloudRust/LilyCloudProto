@@ -39,6 +39,8 @@ class StorageResponse(BaseModel):
 
 class StorageListResponse(BaseModel):
     total: int
+    page: int
+    page_size: int
     items: list[StorageResponse]
 
 
@@ -47,5 +49,10 @@ class StorageListQuery(BaseModel):
     type: StorageType | None = Field(None)
     sort_by: SortBy = Field(SortBy.CREATED_AT)
     sort_order: SortOrder = Field(SortOrder.DESC)
+    enabled_first: bool = Field(True)
     page: int = Field(1, ge=1)
     page_size: int = Field(20, ge=1, le=100)
+
+
+class MessageResponse(BaseModel):
+    message: str
