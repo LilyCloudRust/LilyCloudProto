@@ -1,3 +1,5 @@
+import os
+
 from lilycloudproto.domain.driver import Driver
 from lilycloudproto.infra.drivers.local_driver import LocalDriver
 from lilycloudproto.infra.repositories.storage_repository import StorageRepository
@@ -18,6 +20,20 @@ class StorageService:
     def get_physical_paths(self, paths: list[str]) -> list[str]:
         return paths
 
-    def get_trash_root(self) -> str:
-        # In a real app, this would be from config
-        return ".trash"
+    def get_trash_root(self, path: str = "") -> str:
+        """
+        Get the trash root directory for a given path.
+        Follows AList strategy: .trash directory at the mount point (storage root).
+        """
+        if not path:
+            return os.path.abspath(".trash")
+
+        # Find mount point or root of the path
+        current_path = os.path.abspath(path)
+        while not os.path.ismount(current_path):
+            parent = os.path.dirname(current_path)
+            if parent == current_path:  # Reached root
+                break
+            current_path = parent
+
+        return os.path.join(current_path, ".trash")

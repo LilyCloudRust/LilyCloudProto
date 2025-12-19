@@ -1,6 +1,3 @@
-import mimetypes
-import os
-from datetime import datetime
 from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends, Request
@@ -108,7 +105,7 @@ async def list_trash(
     query: Annotated[TrashListQuery, Depends()],
 ) -> TrashResponse:
     """List files in trash."""
-    repo = TrashRepository(db, storage_service.get_trash_root())
+    repo = TrashRepository(db, storage_service)
 
     items, total = await repo.search(query)
 
@@ -127,55 +124,14 @@ async def get_trash_entry(
     storage_service: Annotated[StorageService, Depends(get_storage_service)],
 ) -> TrashItem:
     """Get trash entry details."""
-    repo = TrashRepository(db, storage_service.get_trash_root())
-    entry = await repo.get_by_id(trash_id)
+    repo = TrashRepository(db, storage_service)
+    item = await repo.get_item_by_id(trash_id)
 
-    if not entry:
+    if not item:
         raise NotFoundError(f"Trash entry {trash_id} not found.")
 
-    if entry.user_id != user.user_id:
+    if item.user_id != user.user_id:
         # Assuming users can only see their own trash
         raise NotFoundError(f"Trash entry {trash_id} not found.")
 
-    # We need to construct TrashItem which includes FS info (size, type, etc.)
-    # The repo.search does this logic, but get_by_id only returns the DB entity.
-    # We should probably expose a method in repo to get the full item or do it here.
-    # Since repo.search logic is complex (hybrid), let's reuse a similar logic here or
-    # add a helper in repo.
-    # For now, I will implement the FS lookup here to match the response model.
-
-    trash_path = os.path.join(repo.trash_root, str(entry.trash_id))
-
-    item_type = "unknown"
-    size = 0
-    mime_type = None
-    created_at = None
-    modified_at = None
-    accessed_at = None
-
-    if os.path.exists(trash_path):
-        stat = os.stat(trash_path)
-        size = stat.st_size
-        created_at = datetime.fromtimestamp(stat.st_ctime)
-        modified_at = datetime.fromtimestamp(stat.st_mtime)
-        accessed_at = datetime.fromtimestamp(stat.st_atime)
-
-        if os.path.isdir(trash_path):
-            item_type = "directory"
-        else:
-            item_type = "file"
-            mime_type, _ = mimetypes.guess_type(entry.entry_name)
-
-    return TrashItem(
-        trash_id=entry.trash_id,
-        user_id=entry.user_id,
-        entry_name=entry.entry_name,
-        original_path=entry.original_path,
-        type=item_type,
-        size=size,
-        mime_type=mime_type,
-        deleted_at=entry.deleted_at,
-        created_at=created_at,
-        modified_at=modified_at,
-        accessed_at=accessed_at,
-    )
+    return item
