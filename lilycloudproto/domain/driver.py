@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncGenerator, Awaitable, Callable
 
 from lilycloudproto.domain.values.files.file import File
 from lilycloudproto.domain.values.files.list import ListArgs
@@ -51,3 +51,36 @@ class Driver(ABC):
         progress_callback: Callable[[int, int], Awaitable[None]] | None = None,
     ) -> None:
         pass
+
+    @abstractmethod
+    async def save_file(self, path: str, content: bytes) -> None:
+        pass
+
+    @abstractmethod
+    async def get_file_bytes(self, path: str) -> bytes:
+        pass
+
+    @abstractmethod
+    def get_file_stream(
+        self, path: str, chunk_size: int = 1024 * 64
+    ) -> AsyncGenerator[bytes]:
+        pass
+
+    @abstractmethod
+    async def exists(self, path: str) -> bool:
+        pass
+
+    @abstractmethod
+    async def is_file(self, path: str) -> bool:
+        pass
+
+    @abstractmethod
+    async def create_dir(self, path: str) -> None:
+        pass
+
+    @abstractmethod
+    def get_absolute_path(self, virtual_path: str) -> str:
+        pass
+
+    async def get_download_link(self, virtual_path: str) -> str | None:
+        return None

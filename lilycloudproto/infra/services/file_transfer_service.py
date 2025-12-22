@@ -1,29 +1,25 @@
+# lilycloudproto/infra/services/file_transfer_service.py
+import asyncio
 import io
 import os
 import zipfile
 from collections.abc import AsyncGenerator
 from datetime import datetime
 
-import aiofiles
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from lilycloudproto.domain.driver import Driver
 from lilycloudproto.domain.entities.task import Task
 from lilycloudproto.domain.values.task import TaskStatus, TaskType
-from lilycloudproto.infra.drivers.local_driver import LocalDriver
+from lilycloudproto.models.files.transfer import DownloadResource
 from lilycloudproto.models.task import TaskResponse
 
 
 class FileTransferService:
-    def __init__(self, storage_driver: LocalDriver, db: AsyncSession) -> None:
+    def __init__(self, storage_driver: Driver, db: AsyncSession) -> None:
         self.driver = storage_driver
-        # self.storage_root = os.path.abspath("./storage")
         self.db = db
-
-    def _get_real_path(self, virtual_path: str) -> str:
-        clean_path = virtual_path.lstrip("/\\")
-        real_path = os.path.abspath(clean_path)
-        return real_path
 
     async def create_upload_task(
         self, user_id: int, dst_dir: str, file_names: list[str]
@@ -58,15 +54,11 @@ class FileTransferService:
             return
 
         try:
-            target_dir = self._get_real_path(dst_dir)
-            os.makedirs(target_dir, exist_ok=True)
-
+            await self.driver.create_dir(dst_dir)
             total = len(files)
             for i, (content, name) in enumerate(zip(files, filenames, strict=True)):
-
-                file_path = os.path.join(target_dir, name)
-                async with aiofiles.open(file_path, "wb") as f:
-                    await f.write(content)
+                file_virtual_path = os.path.join(dst_dir, name)
+                await self.driver.save_file(file_virtual_path, content)
 
                 task.progress = ((i + 1) / total) * 100
                 task.updated_at = datetime.now()
@@ -85,8 +77,7 @@ class FileTransferService:
         self, user_id: int, src_dir: str, file_names: list[str]
     ) -> TaskResponse:
         now = datetime.now()
-        real_base = self._get_real_path(src_dir)
-        if not os.path.exists(real_base):
+        if not await self.driver.exists(src_dir):
             raise FileNotFoundError(f"Directory {src_dir} not found")
         task = Task(
             task_id=None,
@@ -114,11 +105,27 @@ class FileTransferService:
             raise ValueError("Task not found")
         return task
 
-    def get_file_path_for_download(self, virtual_path: str) -> str:
-        path = self._get_real_path(virtual_path)
-        if not os.path.exists(path) or not os.path.isfile(path):
+    async def get_download_resource(self, virtual_path: str) -> DownloadResource:
+        if not await self.driver.exists(virtual_path):
             raise FileNotFoundError("File not found")
-        return path
+
+        if not await self.driver.exists(virtual_path):
+            raise FileNotFoundError("File not found")
+
+        filename = os.path.basename(virtual_path)
+
+        if hasattr(self.driver, "get_download_link"):
+            url = await self.driver.get_download_link(virtual_path)
+            if url:
+                return DownloadResource("url", url, filename)
+
+        if hasattr(self.driver, "get_absolute_path"):
+            real_path = self.driver.get_absolute_path(virtual_path)
+            if real_path and os.path.exists(real_path):
+                return DownloadResource("path", real_path, filename)
+        return DownloadResource(
+            "stream", self.driver.get_file_stream(virtual_path), filename
+        )
 
     async def archive_stream_generator(self, task_id: int) -> AsyncGenerator[bytes]:
         task = await self.get_task(task_id)
@@ -128,33 +135,50 @@ class FileTransferService:
         task.status = TaskStatus.RUNNING
         task.started_at = datetime.now()
         await self.db.commit()
-
         zip_buffer = io.BytesIO()
-        async with aiofiles.tempfile.TemporaryDirectory():
-            with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-                total = len(file_names)
-                processed = 0
-                for processed, fname in enumerate(file_names, start=1):
-                    full_path = self._get_real_path(os.path.join(src_dir, fname))
-                    try:
-                        async with aiofiles.open(full_path, "rb") as f:
-                            data = await f.read()
-                        zf.writestr(fname, data)
-                    except Exception as e:
-                        zf.writestr(f"{fname}.error.txt", f"Error: {e}")
-                    task.progress = (processed / total) * 100
-                    await self.db.commit()
 
+        try:
+            with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+                total_files = len(file_names)
+
+                for idx, fname in enumerate(file_names, start=1):
+                    file_virtual_path = f"{src_dir}/{fname}".replace("//", "/")
+
+                    try:
+                        with zf.open(fname, "w", force_zip64=True) as dest_file:
+                            source_stream = self.driver.get_file_stream(
+                                file_virtual_path, chunk_size=64 * 1024
+                            )
+
+                            async for chunk in source_stream:
+                                dest_file.write(chunk)
+                                if zip_buffer.tell() > 0:
+                                    zip_buffer.seek(0)
+                                    yield zip_buffer.read()
+                                    zip_buffer.seek(0)
+                                    zip_buffer.truncate(0)
+                                await asyncio.sleep(0)
+
+                    except Exception as e:
+                        error_msg = f"Error compressing {fname}: {e!s}"
+                        zf.writestr(f"{fname}.error.txt", error_msg)
+                    task.progress = (idx / total_files) * 100
+                    await self.db.commit()
                     if zip_buffer.tell() > 0:
                         zip_buffer.seek(0)
                         yield zip_buffer.read()
                         zip_buffer.seek(0)
                         zip_buffer.truncate(0)
-
             zip_buffer.seek(0)
             yield zip_buffer.read()
 
-        task.status = TaskStatus.COMPLETED
-        task.completed_at = datetime.now()
-        task.progress = 100.0
-        await self.db.commit()
+            task.status = TaskStatus.COMPLETED
+            task.completed_at = datetime.now()
+            task.progress = 100.0
+            await self.db.commit()
+
+        except Exception as e:
+            task.status = TaskStatus.FAILED
+            task.message = str(e)
+            await self.db.commit()
+            raise e

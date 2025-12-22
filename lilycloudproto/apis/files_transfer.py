@@ -1,7 +1,5 @@
-import os
-
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -40,29 +38,15 @@ async def get_current_user_auth(
     return await auth_service.get_user_from_token(token)
 
 
-@router.get("", summary="Single File Download")
-async def download_file(
-    path: str = Query(..., description="Full path to the file"),
-    user: User = Depends(get_current_user_auth),
-    service: FileTransferService = Depends(get_file_transfer_service),
-) -> FileResponse:
-    real_path = service.get_file_path_for_download(path)
-    filename = os.path.basename(real_path)
-
-    return FileResponse(
-        path=real_path, filename=filename, media_type="application/octet-stream"
-    )
-
-
-@router.post("/upload", response_model=TaskResponse, summary="Batch Upload")
+@router.post("/upload", response_model=TaskResponse)
 async def batch_upload(
-    dir: str = Form(...),
-    files: list[UploadFile] = File(...),
+    dir: str = Form(..., description="Target directory"),
+    files: list[UploadFile] = File(..., description="Files to upload"),
     user: User = Depends(get_current_user_auth),
     service: FileTransferService = Depends(get_file_transfer_service),
 ) -> TaskResponse:
-    file_names: list[str] = [f.filename for f in files if f.filename]
-
+    """POST /api/files/upload - Batch Upload (Multipart)"""
+    file_names = [f.filename for f in files if f.filename]
     if len(file_names) != len(files):
         raise HTTPException(status_code=400, detail="Invalid filename detected")
 
@@ -72,24 +56,55 @@ async def batch_upload(
         file_contents.append(content)
 
     task = await service.create_upload_task(
-        user_id=user.user_id,
-        dst_dir=dir,
-        file_names=file_names,
+        user_id=user.user_id, dst_dir=dir, file_names=file_names
     )
 
+    # 异步执行或后台任务
     await service.process_upload_files(
         task_id=task.task_id, dst_dir=dir, files=file_contents, filenames=file_names
     )
-
     return task
 
 
-@router.post("/download", response_model=TaskResponse, summary="Batch Download Request")
+@router.get("")
+async def download_file(
+    path: str = Query(..., description="Full path to the file"),
+    user: User = Depends(get_current_user_auth),
+    service: FileTransferService = Depends(get_file_transfer_service),
+) -> FileResponse | RedirectResponse | StreamingResponse:
+    """
+    GET /api/files - Single File Download
+    Returns File, Redirect(URL), or Stream based on driver.
+    """
+    resource = await service.get_download_resource(path)
+
+    if resource.resource_type == "path":
+        return FileResponse(
+            path=resource.data,
+            filename=resource.filename,
+            media_type=resource.media_type,
+        )
+    elif resource.resource_type == "url":
+        return RedirectResponse(url=resource.data)
+    elif resource.resource_type == "stream":
+        return StreamingResponse(
+            resource.data,
+            media_type=resource.media_type,
+            headers={
+                "Content-Disposition": f'attachment; filename="{resource.filename}"'
+            },
+        )
+    else:
+        raise HTTPException(status_code=500, detail="Unknown resource type")
+
+
+@router.post("/download", response_model=TaskResponse)
 async def request_batch_download(
     request: BatchDownloadRequest,
     user: User = Depends(get_current_user_auth),
     service: FileTransferService = Depends(get_file_transfer_service),
 ) -> TaskResponse:
+    """POST /api/files/download - Create a Task to zip multiple files"""
     task = await service.create_download_task(
         user_id=user.user_id, src_dir=request.dir, file_names=request.file_names
     )

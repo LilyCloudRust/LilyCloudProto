@@ -2,10 +2,11 @@ import asyncio
 import mimetypes
 import os
 import shutil
-from collections.abc import Awaitable, Callable, Generator
+from collections.abc import AsyncGenerator, Awaitable, Callable, Generator
 from datetime import datetime
 from typing import override
 
+import aiofiles
 import magic  # type: ignore[import-untyped]
 
 from lilycloudproto.domain.driver import Driver
@@ -258,3 +259,52 @@ class LocalDriver(Driver):
         if args.dir_first:
             files.sort(key=lambda file: file.type == "file")
         return files
+
+    def __init__(self, base_root: str = "./storage"):
+        self.base_root = os.path.abspath(base_root)
+        os.makedirs(self.base_root, exist_ok=True)
+
+    def _resolve_path(self, virtual_path: str) -> str:
+        clean_path = virtual_path.lstrip("/\\")
+        full_path = os.path.abspath(os.path.join(self.base_root, clean_path))
+        if not full_path.startswith(self.base_root):
+            raise ValueError("Access denied: Path outside storage root")
+        return full_path
+
+    async def save_file(self, path: str, content: bytes) -> None:
+        full_path = self._resolve_path(path)
+        os.makedirs(os.path.dirname(full_path), exist_ok=True)
+        async with aiofiles.open(full_path, "wb") as f:
+            await f.write(content)
+
+    async def get_file_bytes(self, path: str) -> bytes:
+        full_path = self._resolve_path(path)
+        if not os.path.exists(full_path):
+            raise FileNotFoundError(f"File not found: {path}")
+        async with aiofiles.open(full_path, "rb") as f:
+            return await f.read()
+
+    async def get_file_stream(
+        self, path: str, chunk_size: int = 1024 * 64
+    ) -> AsyncGenerator[bytes]:
+        full_path = self._resolve_path(path)
+        if not os.path.exists(full_path):
+            raise FileNotFoundError(f"File not found: {path}")
+        async with aiofiles.open(full_path, "rb") as f:
+            while chunk := await f.read(chunk_size):
+                yield chunk
+
+    async def exists(self, path: str) -> bool:
+        full_path = self._resolve_path(path)
+        return os.path.exists(full_path)
+
+    async def is_file(self, path: str) -> bool:
+        full_path = self._resolve_path(path)
+        return os.path.isfile(full_path)
+
+    async def create_dir(self, path: str) -> None:
+        full_path = self._resolve_path(path)
+        os.makedirs(full_path, exist_ok=True)
+
+    def get_absolute_path(self, virtual_path: str) -> str:
+        return self._resolve_path(virtual_path)
