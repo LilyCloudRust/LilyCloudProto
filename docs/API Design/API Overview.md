@@ -2,11 +2,11 @@
 
 ## Notes
 
-* This is a API design document for prototyping, not intended for production use.
-* Only successful responses are shown.
-* JWT Authentication usage is indicated by adding a JWT token to the Authorization header in the request.
-* It is subject to change.
-* Error messages should not contain a period.
+- This is a API design document for prototyping, not intended for production use.
+- Only successful responses are shown.
+- JWT Authentication usage is indicated by adding a JWT token to the Authorization header in the request.
+- It is subject to change.
+- Error messages should not contain a period.
 
 ## Authentication
 
@@ -66,6 +66,7 @@ GET     /api/shares/{share_id}
 GET     /api/shares
 PATCH   /api/shares/{share_id}
 DELETE  /api/shares/{share_id}
+GET     /api/shares/{token}
 ```
 
 ## Administration
@@ -101,8 +102,8 @@ DELETE  /api/admin/tasks/{task_id}
 
 ## References
 
-* [AList GitHub repository](https://github.com/AlistGo/alist)
-* [AList documentation](https://alistgo.com/)
-* [Collection of example sites built with AList](https://linux.do/t/topic/63238)
-* [Example site built with AList](https://cloud.lilywhite.cc/s/4ZUW)
-* [AList API documentation reference](https://alist-public.apifox.cn/)
+- [AList GitHub repository](https://github.com/AlistGo/alist)
+- [AList documentation](https://alistgo.com/)
+- [Collection of example sites built with AList](https://linux.do/t/topic/63238)
+- [Example site built with AList](https://cloud.lilywhite.cc/s/4ZUW)
+- [AList API documentation reference](https://alist-public.apifox.cn/)

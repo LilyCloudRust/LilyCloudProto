@@ -111,7 +111,7 @@ Request:
 
 ```json
 {
-  "share_token": "string",
+  "share_token": "uuid", // Randomly generated UUID of the share link.
   "password": "string" // Optional.
 }
 ```
