@@ -260,15 +260,9 @@ class LocalDriver(Driver):
             files.sort(key=lambda file: file.type == "file")
         return files
 
-    def __init__(self, base_root: str = "./storage"):
-        self.base_root = os.path.abspath(base_root)
-        os.makedirs(self.base_root, exist_ok=True)
-
     def _resolve_path(self, virtual_path: str) -> str:
         clean_path = virtual_path.lstrip("/\\")
-        full_path = os.path.abspath(os.path.join(self.base_root, clean_path))
-        if not full_path.startswith(self.base_root):
-            raise ValueError("Access denied: Path outside storage root")
+        full_path = os.path.abspath(clean_path)
         return full_path
 
     async def save_file(self, path: str, content: bytes) -> None:

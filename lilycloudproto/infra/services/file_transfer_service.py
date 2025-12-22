@@ -142,7 +142,7 @@ class FileTransferService:
                 total_files = len(file_names)
 
                 for idx, fname in enumerate(file_names, start=1):
-                    file_virtual_path = f"{src_dir}/{fname}".replace("//", "/")
+                    file_virtual_path = os.path.join(src_dir, fname)
 
                     try:
                         with zf.open(fname, "w", force_zip64=True) as dest_file:

@@ -1,4 +1,13 @@
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Response,
+    UploadFile,
+)
 from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -71,7 +80,7 @@ async def download_file(
     path: str = Query(..., description="Full path to the file"),
     user: User = Depends(get_current_user_auth),
     service: FileTransferService = Depends(get_file_transfer_service),
-) -> FileResponse | RedirectResponse | StreamingResponse:
+) -> Response:
     """
     GET /api/files - Single File Download
     Returns File, Redirect(URL), or Stream based on driver.
