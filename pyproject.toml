@@ -28,7 +28,13 @@ dependencies = [
 requires-python = ">=3.13"
 
 [project.optional-dependencies]
-dev = ["black>=25.9.0", "mypy>=1.18.2", "pre-commit>=4.3.0", "ruff>=0.14.1"]
+dev = [
+    "black>=25.9.0",
+    "mypy>=1.18.2",
+    "pre-commit>=4.3.0",
+    "ruff>=0.14.1",
+    "types-aiofiles>=25.1.0.20251011",
+]
 
 [tool.pyright]
 venvPath = "."
@@ -51,8 +57,3 @@ lint.ignore = ["B008"]
 [tool.mypy]
 python_version = "3.13"
 strict = true
-
-[dependency-groups]
-dev = [
-    "types-aiofiles>=25.1.0.20251011",
-]

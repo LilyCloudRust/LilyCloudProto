@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import override
 
 import aiofiles
-import magic  # type: ignore[import-untyped]
+import magic
 
 from lilycloudproto.domain.driver import Driver
 from lilycloudproto.domain.values.files.file import File, Type

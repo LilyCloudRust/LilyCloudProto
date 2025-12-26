@@ -57,10 +57,6 @@ class Driver(ABC):
         pass
 
     @abstractmethod
-    async def get_file_bytes(self, path: str) -> bytes:
-        pass
-
-    @abstractmethod
     def get_file_stream(
         self, path: str, chunk_size: int = 1024 * 64
     ) -> AsyncGenerator[bytes]:
