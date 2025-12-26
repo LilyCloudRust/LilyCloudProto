@@ -67,14 +67,6 @@ class Driver(ABC):
         pass
 
     @abstractmethod
-    async def is_file(self, path: str) -> bool:
-        pass
-
-    @abstractmethod
-    async def create_dir(self, path: str) -> None:
-        pass
-
-    @abstractmethod
     def get_absolute_path(self, virtual_path: str) -> str:
         pass
 

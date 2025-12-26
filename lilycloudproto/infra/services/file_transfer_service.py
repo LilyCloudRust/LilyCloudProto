@@ -54,7 +54,7 @@ class FileTransferService:
             return
 
         try:
-            await self.driver.create_dir(dst_dir)
+            self.driver.mkdir(dst_dir, parents=True)
             total = len(files)
             for i, (content, name) in enumerate(zip(files, filenames, strict=True)):
                 file_virtual_path = os.path.join(dst_dir, name)
