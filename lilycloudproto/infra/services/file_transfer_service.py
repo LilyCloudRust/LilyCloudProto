@@ -12,13 +12,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from lilycloudproto.domain.driver import Driver
 from lilycloudproto.domain.entities.task import Task
 from lilycloudproto.domain.values.task import TaskStatus, TaskType
+from lilycloudproto.infra.services.storage_service import StorageService
 from lilycloudproto.models.files.transfer import DownloadResource
 from lilycloudproto.models.task import TaskResponse
 
 
 class FileTransferService:
-    def __init__(self, storage_driver: Driver, db: AsyncSession) -> None:
+    def __init__(
+        self, storage_driver: Driver, storage_service: StorageService, db: AsyncSession
+    ) -> None:
         self.driver = storage_driver
+        self.storage_service = storage_service
         self.db = db
 
     async def create_upload_task(
@@ -58,7 +62,7 @@ class FileTransferService:
             total = len(files)
             for i, (content, name) in enumerate(zip(files, filenames, strict=True)):
                 file_virtual_path = os.path.join(dst_dir, name)
-                await self.driver.save_file(file_virtual_path, content)
+                await self.driver.write(file_virtual_path, content)
 
                 task.progress = ((i + 1) / total) * 100
                 task.updated_at = datetime.now()
@@ -119,13 +123,10 @@ class FileTransferService:
             if url:
                 return DownloadResource("url", url, filename)
 
-        if hasattr(self.driver, "get_absolute_path"):
-            real_path = self.driver.get_absolute_path(virtual_path)
-            if real_path and os.path.exists(real_path):
-                return DownloadResource("path", real_path, filename)
-        return DownloadResource(
-            "stream", self.driver.get_file_stream(virtual_path), filename
-        )
+        real_path = self.storage_service.get_physical_path(virtual_path)
+        if real_path and os.path.exists(real_path):
+            return DownloadResource("path", real_path, filename)
+        return DownloadResource("stream", self.driver.read(virtual_path), filename)
 
     async def archive_stream_generator(self, task_id: int) -> AsyncGenerator[bytes]:
         task = await self.get_task(task_id)
@@ -146,7 +147,7 @@ class FileTransferService:
 
                     try:
                         with zf.open(fname, "w", force_zip64=True) as dest_file:
-                            source_stream = self.driver.get_file_stream(
+                            source_stream = self.driver.read(
                                 file_virtual_path, chunk_size=64 * 1024
                             )
 

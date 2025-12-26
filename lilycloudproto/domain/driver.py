@@ -53,21 +53,15 @@ class Driver(ABC):
         pass
 
     @abstractmethod
-    async def save_file(self, path: str, content: bytes) -> None:
+    async def write(self, path: str, content: bytes) -> None:
         pass
 
     @abstractmethod
-    def get_file_stream(
-        self, path: str, chunk_size: int = 1024 * 64
-    ) -> AsyncGenerator[bytes]:
+    def read(self, path: str, chunk_size: int = 1024 * 64) -> AsyncGenerator[bytes]:
         pass
 
     @abstractmethod
     async def exists(self, path: str) -> bool:
-        pass
-
-    @abstractmethod
-    def get_absolute_path(self, virtual_path: str) -> str:
         pass
 
     async def get_download_link(self, virtual_path: str) -> str | None:

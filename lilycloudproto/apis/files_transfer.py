@@ -16,9 +16,11 @@ from lilycloudproto.config import AuthSettings
 from lilycloudproto.database import get_db
 from lilycloudproto.domain.entities.user import User
 from lilycloudproto.infra.drivers.local_driver import LocalDriver
+from lilycloudproto.infra.repositories.storage_repository import StorageRepository
 from lilycloudproto.infra.repositories.user_repository import UserRepository
 from lilycloudproto.infra.services.auth_service import AuthService
 from lilycloudproto.infra.services.file_transfer_service import FileTransferService
+from lilycloudproto.infra.services.storage_service import StorageService
 from lilycloudproto.models.files.transfer import BatchDownloadRequest
 from lilycloudproto.models.task import TaskResponse
 
@@ -37,7 +39,11 @@ def get_file_transfer_service(
     db: AsyncSession = Depends(get_db),
 ) -> FileTransferService:
     driver = LocalDriver()
-    return FileTransferService(storage_driver=driver, db=db)
+    storage_repo = StorageRepository(db)
+    storage_service = StorageService(storage_repo)
+    return FileTransferService(
+        storage_driver=driver, storage_service=storage_service, db=db
+    )
 
 
 async def get_current_user_auth(
