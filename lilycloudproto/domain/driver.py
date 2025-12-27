@@ -53,16 +53,13 @@ class Driver(ABC):
         pass
 
     @abstractmethod
-    async def write(self, path: str, content: bytes) -> None:
-        pass
-
-    @abstractmethod
     def read(self, path: str, chunk_size: int = 1024 * 64) -> AsyncGenerator[bytes]:
         pass
 
     @abstractmethod
-    async def exists(self, path: str) -> bool:
+    async def write(self, path: str, content: bytes) -> None:
         pass
 
-    async def get_download_link(self, virtual_path: str) -> str | None:
-        return None
+    @abstractmethod
+    async def get_link(self, path: str) -> str | None:
+        pass

@@ -1,4 +1,3 @@
-# lilycloudproto/infra/services/file_transfer_service.py
 import asyncio
 import io
 import os
@@ -18,6 +17,10 @@ from lilycloudproto.models.task import TaskResponse
 
 
 class FileTransferService:
+    driver: Driver
+    storage_service: StorageService
+    db: AsyncSession
+
     def __init__(
         self, storage_driver: Driver, storage_service: StorageService, db: AsyncSession
     ) -> None:
@@ -46,7 +49,7 @@ class FileTransferService:
         self.db.add(task)
         await self.db.commit()
         await self.db.refresh(task)
-        return TaskResponse(**task.__dict__)
+        return TaskResponse.model_validate(task)
 
     async def process_upload_files(
         self, task_id: int, dst_dir: str, files: list[bytes], filenames: list[str]
@@ -58,7 +61,6 @@ class FileTransferService:
             return
 
         try:
-            self.driver.mkdir(dst_dir, parents=True)
             total = len(files)
             for i, (content, name) in enumerate(zip(files, filenames, strict=True)):
                 file_virtual_path = os.path.join(dst_dir, name)
@@ -81,8 +83,6 @@ class FileTransferService:
         self, user_id: int, src_dir: str, file_names: list[str]
     ) -> TaskResponse:
         now = datetime.now()
-        if not await self.driver.exists(src_dir):
-            raise FileNotFoundError(f"Directory {src_dir} not found")
         task = Task(
             task_id=None,
             user_id=user_id,
@@ -99,7 +99,7 @@ class FileTransferService:
         self.db.add(task)
         await self.db.commit()
         await self.db.refresh(task)
-        return TaskResponse(**task.__dict__)
+        return TaskResponse.model_validate(task)
 
     async def get_task(self, task_id: int) -> Task:
         stmt = select(Task).where(Task.task_id == task_id)
@@ -110,18 +110,11 @@ class FileTransferService:
         return task
 
     async def get_download_resource(self, virtual_path: str) -> DownloadResource:
-        if not await self.driver.exists(virtual_path):
-            raise FileNotFoundError("File not found")
-
-        if not await self.driver.exists(virtual_path):
-            raise FileNotFoundError("File not found")
-
         filename = os.path.basename(virtual_path)
 
-        if hasattr(self.driver, "get_download_link"):
-            url = await self.driver.get_download_link(virtual_path)
-            if url:
-                return DownloadResource("url", url, filename)
+        url = await self.driver.get_link(virtual_path)
+        if url:
+            return DownloadResource("url", url, filename)
 
         real_path = self.storage_service.get_physical_path(virtual_path)
         if real_path and os.path.exists(real_path):

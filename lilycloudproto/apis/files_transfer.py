@@ -74,7 +74,6 @@ async def batch_upload(
         user_id=user.user_id, dst_dir=dir, file_names=file_names
     )
 
-    # 异步执行或后台任务
     await service.process_upload_files(
         task_id=task.task_id, dst_dir=dir, files=file_contents, filenames=file_names
     )

@@ -180,26 +180,24 @@ class LocalDriver(Driver):
 
     @override
     async def write(self, path: str, content: bytes) -> None:
-        full_path = self._resolve_path(path)
-        os.makedirs(os.path.dirname(full_path), exist_ok=True)
-        async with aiofiles.open(full_path, "wb") as f:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        async with aiofiles.open(path, "wb") as f:
             _ = await f.write(content)
 
     @override
     async def read(
         self, path: str, chunk_size: int = 1024 * 64
     ) -> AsyncGenerator[bytes]:
-        full_path = self._resolve_path(path)
-        if not os.path.exists(full_path):
+        if not os.path.exists(path):
             raise FileNotFoundError(f"File not found: {path}")
-        async with aiofiles.open(full_path, "rb") as f:
+        async with aiofiles.open(path, "rb") as f:
             while chunk := await f.read(chunk_size):
                 yield chunk
 
     @override
-    async def exists(self, path: str) -> bool:
-        full_path = self._resolve_path(path)
-        return os.path.exists(full_path)
+    async def get_link(self, path: str) -> str | None:
+        # LocalDriver does not support generating links.
+        return None
 
     def _validate_directory(self, dir: str) -> None:
         dir = os.path.normpath(dir)
@@ -284,8 +282,3 @@ class LocalDriver(Driver):
         if args.dir_first:
             files.sort(key=lambda file: file.type == "file")
         return files
-
-    def _resolve_path(self, virtual_path: str) -> str:
-        clean_path = virtual_path.lstrip("/\\")
-        full_path = os.path.abspath(clean_path)
-        return full_path
