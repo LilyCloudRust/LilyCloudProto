@@ -1,6 +1,6 @@
 import asyncio
-import io
 import os
+import tempfile
 import zipfile
 from collections.abc import AsyncGenerator
 from datetime import datetime
@@ -129,16 +129,21 @@ class FileTransferService:
         task.status = TaskStatus.RUNNING
         task.started_at = datetime.now()
         await self.db.commit()
-        zip_buffer = io.BytesIO()
+
+        # Create a temporary file to build the ZIP.
+        fd, temp_path = tempfile.mkstemp(suffix=".zip")
+        os.close(fd)  # Close the file descriptor, we will use the path
 
         try:
-            with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+            # Build the complete ZIP file.
+            with zipfile.ZipFile(temp_path, "w", zipfile.ZIP_DEFLATED) as zf:
                 total_files = len(file_names)
 
                 for idx, fname in enumerate(file_names, start=1):
                     file_virtual_path = os.path.join(src_dir, fname)
 
                     try:
+                        # Open a writable stream inside the ZIP.
                         with zf.open(fname, "w", force_zip64=True) as dest_file:
                             source_stream = self.driver.read(
                                 file_virtual_path, chunk_size=64 * 1024
@@ -146,25 +151,22 @@ class FileTransferService:
 
                             async for chunk in source_stream:
                                 dest_file.write(chunk)
-                                if zip_buffer.tell() > 0:
-                                    zip_buffer.seek(0)
-                                    yield zip_buffer.read()
-                                    zip_buffer.seek(0)
-                                    zip_buffer.truncate(0)
                                 await asyncio.sleep(0)
 
                     except Exception as e:
                         error_msg = f"Error compressing {fname}: {e!s}"
                         zf.writestr(f"{fname}.error.txt", error_msg)
+
                     task.progress = (idx / total_files) * 100
                     await self.db.commit()
-                    if zip_buffer.tell() > 0:
-                        zip_buffer.seek(0)
-                        yield zip_buffer.read()
-                        zip_buffer.seek(0)
-                        zip_buffer.truncate(0)
-            zip_buffer.seek(0)
-            yield zip_buffer.read()
+
+            with open(temp_path, "rb") as f:
+                while True:
+                    chunk = f.read(64 * 1024)
+                    if not chunk:
+                        break
+                    yield chunk
+                    await asyncio.sleep(0)  # Yield control during streaming
 
             task.status = TaskStatus.COMPLETED
             task.completed_at = datetime.now()
@@ -176,3 +178,7 @@ class FileTransferService:
             task.message = str(e)
             await self.db.commit()
             raise e
+        finally:
+            # Clean up the temporary file
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
