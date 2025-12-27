@@ -20,26 +20,32 @@ class StorageService:
     def get_physical_paths(self, paths: list[str]) -> list[str]:
         return paths
 
-    def get_trash_root(self, path: str = "") -> str:
+    def get_user_root(self, user_id: int, path: str) -> str:
+        return path
+
+    def get_trash_root(self, src_path: str) -> str:
         """
-        Get the trash root directory for a given path.
-        Follows AList strategy: .trash directory at the mount point (storage root).
-        If mount point is root (/), use user's home directory instead.
+        Get trash root directory from source path.
+
+        Temporarily implemented by inferring mount point from src_path.
+        Future: Query Storage table for mount_path and use {mount_path}/.trash.
+
+        Args:
+            src_path: Source file path
+
+        Returns:
+            Trash root directory path (e.g., /mnt/data/.trash)
         """
-        if not path:
-            return os.path.abspath(".trash")
+        # Temporarily: infer mount point from src_path
+        # Example: /mnt/data/user_1/Documents -> /mnt/data/.trash
+        user_root = self.get_user_root(0, src_path)  # user_id not needed for inference
+        # Get parent directory as mount point
+        mount_point = os.path.dirname(user_root)
+        if not mount_point or mount_point == os.sep:
+            # If no parent, use user_root as mount point
+            mount_point = user_root
+        return os.path.join(mount_point, ".trash")
 
-        # Find mount point or root of the path
-        current_path = os.path.abspath(path)
-        while not os.path.ismount(current_path):
-            parent = os.path.dirname(current_path)
-            if parent == current_path:  # Reached root
-                break
-            current_path = parent
-
-        # If mount point is root (/), use home directory to avoid permission issues
-        if current_path == "/":
-            home_dir = os.path.expanduser("~")
-            return os.path.join(home_dir, ".trash")
-
-        return os.path.join(current_path, ".trash")
+    def validate_user_path(self, user_id: int, path: str) -> bool:
+        # Temporarily skipped
+        return True

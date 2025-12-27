@@ -6,13 +6,12 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from lilycloudproto.domain.entities.task import Task
 from lilycloudproto.domain.entities.trash import Trash
 from lilycloudproto.domain.values.task import TaskStatus, TaskType
-from lilycloudproto.error import BadRequestError, NotFoundError
+from lilycloudproto.error import BadRequestError, InternalServerError, NotFoundError
 from lilycloudproto.infra.repositories.task_repository import TaskRepository
 from lilycloudproto.infra.repositories.trash_repository import TrashRepository
 from lilycloudproto.infra.services.storage_service import StorageService
@@ -33,7 +32,7 @@ class TaskWorker:
     _handlers: dict[
         TaskType,
         Callable[
-            [AsyncSession, Task, Callable[[int, int], Awaitable[None]]],
+            [Task, Callable[[int, int], Awaitable[None]]],
             Awaitable[None],
         ],
     ]
@@ -52,7 +51,6 @@ class TaskWorker:
             TaskType.MOVE: self._handle_move,
             TaskType.DELETE: self._handle_delete,
             TaskType.TRASH: self._handle_trash,
-            TaskType.RESTORE: self._handle_restore,
         }
 
     async def start(self) -> None:
@@ -100,7 +98,7 @@ class TaskWorker:
                 if handler is None:
                     raise BadRequestError(f"Unsupported task type '{task.type}'.")
 
-                await handler(session, task, progress_callback)
+                await handler(task, progress_callback)
 
                 # Mark task as completed.
                 task.status = TaskStatus.COMPLETED
@@ -117,7 +115,6 @@ class TaskWorker:
 
     async def _handle_copy(
         self,
-        session: AsyncSession,
         task: Task,
         progress_callback: Callable[[int, int], Awaitable[None]],
     ) -> None:
@@ -132,7 +129,6 @@ class TaskWorker:
 
     async def _handle_move(
         self,
-        session: AsyncSession,
         task: Task,
         progress_callback: Callable[[int, int], Awaitable[None]],
     ) -> None:
@@ -147,24 +143,9 @@ class TaskWorker:
 
     async def _handle_delete(
         self,
-        session: AsyncSession,
         task: Task,
         progress_callback: Callable[[int, int], Awaitable[None]],
     ) -> None:
-        # Check for Trash Operations Markers
-        if task.src_dir == "__TRASH_EMPTY__":
-            await self._handle_empty_trash(session, task, progress_callback)
-            return
-
-        if task.src_dir == "__TRASH_IDS__":
-            await self._handle_delete_trash_by_ids(session, task, progress_callback)
-            return
-
-        if task.dst_dirs and task.dst_dirs[0] == "__TRASH__":
-            await self._handle_delete_trash_by_path(session, task, progress_callback)
-            return
-
-        # Normal File System Delete
         driver = self.storage_service.get_driver(
             task.src_dir or (task.dst_dirs[0] if task.dst_dirs else "")
         )
@@ -177,399 +158,220 @@ class TaskWorker:
 
     async def _handle_trash(
         self,
-        session: AsyncSession,
         task: Task,
         progress_callback: Callable[[int, int], Awaitable[None]],
     ) -> None:
-        trash_repo = TrashRepository(session, self.storage_service)
-
+        """Handle TRASH task: move files to trash with directory structure preserved."""
         if task.src_dir is None:
-            raise BadRequestError("Source directory is required for TRASH task.")
+            raise BadRequestError(
+                f"Source directory is required for TRASH task '{task.task_id}'."
+            )
 
-        src_dir_path = self.storage_service.get_physical_path(task.src_dir)
-        # Use dynamic trash root based on source path
-        trash_root = self.storage_service.get_trash_root(src_dir_path)
+        # Get session from current context (created in _process_task)
+        # Note: This requires the handler to be called within a session context
+        # We'll create a new session here for TrashRepository operations
+        async with self.session_factory() as session:
+            trash_repo = TrashRepository(session)
+            await self._process_trash_task(task, trash_repo, progress_callback)
+
+    async def _process_trash_task(
+        self,
+        task: Task,
+        trash_repo: TrashRepository,
+        progress_callback: Callable[[int, int], Awaitable[None]],
+    ) -> None:
+        """Process trash task with TrashRepository."""
+        if task.src_dir is None:
+            raise BadRequestError(
+                f"Source directory is required for TRASH task '{task.task_id}'."
+            )
+        src_dir = self.storage_service.get_physical_path(task.src_dir)
+        trash_root = self.storage_service.get_trash_root(src_dir)
+
+        # Ensure trash directory exists
         os.makedirs(trash_root, exist_ok=True)
 
         total_files = len(task.file_names)
-        errors: list[str] = []
-        success_count = 0
+        processed = 0
+        failed_files: list[str] = []
 
-        for i, file_name in enumerate(task.file_names):
-            original_path = os.path.join(src_dir_path, file_name)
-            if not os.path.exists(original_path):
-                errors.append(f"File not found: {file_name}")
-                continue
-
-            # 1. Determine unique physical filename in .trash
-            unique_trash_name = self._get_unique_filename(trash_root, file_name)
-            trash_path = os.path.join(trash_root, unique_trash_name)
-
-            virtual_path = os.path.join(task.src_dir, file_name)
-
-            # 2. Move File First (Better transaction consistency)
-            # If file move fails, we don't create a DB entry
+        for file_name in task.file_names:
             try:
-                shutil.move(original_path, trash_path)
-            except Exception as e:
-                error_msg = f"Failed to move {file_name} to trash: {e}"
-                logger.error(error_msg)
-                errors.append(error_msg)
-                await progress_callback(i + 1, total_files)
-                continue
-
-            # 3. Create DB Entry (Only after successful file move)
-            # IMPORTANT: entry_name stores the unique physical name
-            # (e.g., "file(1).txt")
-            # original_path stores the original virtual path
-            # (e.g., "/docs/file.txt")
-            try:
-                entry = Trash(
-                    user_id=task.user_id,
-                    original_path=virtual_path,
-                    entry_name=unique_trash_name,
-                    deleted_at=datetime.now(UTC),
+                await self._trash_single_file(
+                    task,
+                    file_name,
+                    src_dir,
+                    trash_root,
+                    trash_repo,
                 )
-                entry = await trash_repo.create(entry)
-                success_count += 1
-            except Exception as e:
-                # If DB creation fails, try to move file back
-                error_msg = f"Failed to create DB entry for {file_name}: {e}"
-                logger.error(error_msg)
-                try:
-                    shutil.move(trash_path, original_path)
-                except Exception as rollback_error:
-                    logger.error(
-                        f"Failed to rollback file move for {file_name}:"
-                        f"{rollback_error}"
-                    )
-                errors.append(error_msg)
-
-            await progress_callback(i + 1, total_files)
-
-        if success_count == 0 and total_files > 0:
-            raise Exception(f"Trash operation failed. Errors: {'; '.join(errors)}")
-        elif errors:
-            raise Exception(
-                f"Partial success ({success_count}/{total_files}). "
-                f"Errors: {'; '.join(errors)}"
-            )
-
-    def _get_unique_filename(self, directory: str, filename: str) -> str:
-        """
-        Generate a unique filename in the given directory.
-        Example: file.txt -> file(1).txt -> file(2).txt
-        """
-        if not os.path.exists(os.path.join(directory, filename)):
-            return filename
-
-        name, ext = os.path.splitext(filename)
-        counter = 1
-        while True:
-            new_filename = f"{name}({counter}){ext}"
-            if not os.path.exists(os.path.join(directory, new_filename)):
-                return new_filename
-            counter += 1
-
-    async def _handle_restore(
-        self,
-        session: AsyncSession,
-        task: Task,
-        progress_callback: Callable[[int, int], Awaitable[None]],
-    ) -> None:
-        trash_repo = TrashRepository(session, self.storage_service)
-        total_files = len(task.file_names)
-        errors: list[str] = []
-        success_count = 0
-
-        # Lookup by entry_name (Unique Handle) - dir is optional for validation only
-        for i, entry_name in enumerate(task.file_names):
-            # 1. Lookup by entry_name (Unique Handle)
-            # This solves the ambiguity of duplicate original filenames.
-            entry = await trash_repo.get_by_entry_name(entry_name)
-
-            if not entry:
-                errors.append(f"Trash entry not found: {entry_name}")
-                continue
-
-            # 2. Optional validation: if dir is provided, verify entry belongs to it
-            # dir is "relative path to the trash root", which means the directory
-            # part of the original_path. This is an optional safety check.
-            if task.src_dir:
-                normalized_dir = os.path.normpath(task.src_dir)
-                normalized_entry_path = os.path.normpath(entry.original_path)
-
-                # Check if entry's original_path is under the requested dir
-                # For exact match or subdirectory
-                if normalized_dir != "/":
-                    dir_with_sep = normalized_dir + os.sep
-                    is_under_dir = normalized_entry_path.startswith(dir_with_sep)
-                    is_exact_match = normalized_entry_path == normalized_dir
-                    if not is_under_dir and not is_exact_match:
-                        errors.append(
-                            f"File {entry_name} does not belong to directory "
-                            f"{task.src_dir}"
-                        )
-                        continue
-
-            # 3. Determine physical location
-            trash_root = self.storage_service.get_trash_root(entry.original_path)
-            trash_path = os.path.join(trash_root, entry.entry_name)
-
-            if not os.path.exists(trash_path):
-                errors.append(f"Physical file missing: {entry.entry_name}")
-                continue
-
-            # 4. Determine destination
-            dest_path = self.storage_service.get_physical_path(entry.original_path)
-            dest_dir = os.path.dirname(dest_path)
-
-            if os.path.exists(dest_dir) and not os.path.isdir(dest_dir):
-                errors.append(f"Parent path is a file: {dest_dir}")
-                continue
-
-            os.makedirs(dest_dir, exist_ok=True)
-
-            # 5. Handle destination collision (Linux style: rename restored file)
-            final_dest_path = dest_path
-            if os.path.exists(final_dest_path):
-                d_dir, d_name = os.path.split(dest_path)
-                unique_name = self._get_unique_filename(d_dir, d_name)
-                final_dest_path = os.path.join(d_dir, unique_name)
-
-            # 6. Move and Cleanup
-            try:
-                shutil.move(trash_path, final_dest_path)
-                await trash_repo.delete(entry)
-                success_count += 1
-            except Exception as e:
-                errors.append(f"Restore failed for {entry_name}: {e}")
-
-            await progress_callback(i + 1, total_files)
-
-        if success_count == 0 and total_files > 0:
-            raise Exception(f"Restore failed. Errors: {'; '.join(errors)}")
-        elif errors:
-            raise Exception(
-                f"Partial success ({success_count}/{total_files}). "
-                f"Errors: {'; '.join(errors)}"
-            )
-
-    # --- Helper handlers for DELETE variants ---
-
-    async def _handle_empty_trash(
-        self,
-        session: AsyncSession,
-        task: Task,
-        progress_callback: Callable[[int, int], Awaitable[None]],
-    ) -> None:
-        trash_repo = TrashRepository(session, self.storage_service)
-
-        # Security: Only fetch entries for the current user
-        stmt = select(Trash).where(Trash.user_id == task.user_id)
-        result = await session.execute(stmt)
-        entries = result.scalars().all()
-
-        total = len(entries)
-        if total == 0:
-            await progress_callback(1, 1)
-            return
-
-        # Track failed deletions
-        failed_entries: list[Trash] = []
-        errors: list[str] = []
-
-        for i, entry in enumerate(entries):
-            trash_root = self.storage_service.get_trash_root(entry.original_path)
-            trash_path = os.path.join(trash_root, entry.entry_name)
-            try:
-                if os.path.exists(trash_path):
-                    if os.path.isdir(trash_path):
-                        shutil.rmtree(trash_path)
-                    else:
-                        os.remove(trash_path)
-            except Exception as e:
-                error_msg = f"Failed to delete trash file {trash_path}: {e}"
-                logger.error(error_msg)
-                errors.append(error_msg)
-                failed_entries.append(entry)
-
-            await progress_callback(i + 1, total)
-
-        # Only delete DB entries for successfully deleted files
-        if failed_entries:
-            # Delete only successful entries
-            successful_entries = [e for e in entries if e not in failed_entries]
-            for entry in successful_entries:
-                await trash_repo.delete(entry)
-
-            # Report partial failure
-            if len(failed_entries) == total:
-                raise Exception(
-                    f"Failed to delete all trash files. Errors: {'; '.join(errors)}"
+                processed += 1
+                if progress_callback is not None:
+                    await progress_callback(processed, total_files)
+            except Exception as error:
+                error_msg = (
+                    f"Failed to trash file '{file_name}' "
+                    f"in task '{task.task_id}': {error}"
                 )
-            else:
-                raise Exception(
-                    f"Partial success ({len(successful_entries)}/{total}). "
-                    f"Errors: {'; '.join(errors)}"
-                )
-        else:
-            # All successful, delete all DB entries for this user
-            await trash_repo.delete_all(user_id=task.user_id)
-
-    async def _handle_delete_trash_by_ids(
-        self,
-        session: AsyncSession,
-        task: Task,
-        progress_callback: Callable[[int, int], Awaitable[None]],
-    ) -> None:
-        trash_repo = TrashRepository(session, self.storage_service)
-        total = len(task.file_names)
-        errors: list[str] = []
-        success_count = 0
-
-        for i, id_str in enumerate(task.file_names):
-            try:
-                trash_id = int(id_str)
-                entry = await trash_repo.get_by_id(trash_id)
-
-                if not entry:
-                    errors.append(f"Trash entry not found: {trash_id}")
-                    await progress_callback(i + 1, total)
-                    continue
-
-                trash_root = self.storage_service.get_trash_root(entry.original_path)
-                path = os.path.join(trash_root, entry.entry_name)
-                try:
-                    if os.path.exists(path):
-                        if os.path.isdir(path):
-                            shutil.rmtree(path)
-                        else:
-                            os.remove(path)
-                    await trash_repo.delete(entry)
-                    success_count += 1
-                except Exception as e:
-                    error_msg = f"Failed to delete trash file {path}: {e}"
-                    logger.error(error_msg)
-                    errors.append(error_msg)
-            except ValueError:
-                errors.append(f"Invalid trash ID: {id_str}")
-            except Exception as e:
-                error_msg = f"Unexpected error processing trash ID {id_str}: {e}"
                 logger.error(error_msg)
-                errors.append(error_msg)
+                failed_files.append(file_name)
 
-            await progress_callback(i + 1, total)
+        self._validate_trash_task_result(
+            processed, total_files, failed_files, task.task_id
+        )
 
-        if success_count == 0 and total > 0:
-            raise Exception(f"Delete operation failed. Errors: {'; '.join(errors)}")
-        elif errors:
-            raise Exception(
-                f"Partial success ({success_count}/{total}). "
-                f"Errors: {'; '.join(errors)}"
-            )
+    async def _trash_single_file(
+        self,
+        task: Task,
+        file_name: str,
+        src_dir: str,
+        trash_root: str,
+        trash_repo: TrashRepository,
+    ) -> None:
+        """Trash a single file or directory."""
+        src_path = os.path.join(src_dir, file_name)
+        if not self._validate_path(src_path):
+            raise NotFoundError(f"File not found: '{src_path}'.")
 
-    def _delete_file_from_trash_entry(
-        self, entry: Trash, file_name: str
-    ) -> tuple[bool, str | None]:
-        """Delete a file from a trash entry directory.
+        # Calculate entry_name (preserve relative path structure)
+        entry_name = self._calculate_entry_name(src_dir, file_name, trash_root)
 
-        Args:
-            entry: The trash entry (should be a directory)
-            file_name: Name of the file to delete
+        # Handle name conflicts
+        unique_entry_name = await self._get_unique_entry_name(
+            trash_root, entry_name, trash_repo
+        )
 
-        Returns:
-            tuple[bool, str | None]: (success, error_message)
-        """
-        trash_root = self.storage_service.get_trash_root(entry.original_path)
-        trash_entry_path = os.path.join(trash_root, entry.entry_name)
+        # Original path for restoration
+        original_path = os.path.join(src_dir, file_name)
 
-        if not os.path.isdir(trash_entry_path):
-            return False, None
+        # Create Trash database record
+        trash = Trash(
+            user_id=task.user_id,
+            entry_name=unique_entry_name,
+            original_path=original_path,
+            deleted_at=task.created_at,
+        )
+        trash = await trash_repo.create(trash)
 
-        file_path = os.path.join(trash_entry_path, file_name)
-        if not os.path.exists(file_path):
-            return False, None
+        # Move file to trash
+        dst_path = os.path.join(trash_root, unique_entry_name)
+        dst_dir = os.path.dirname(dst_path)
+        if dst_dir:
+            os.makedirs(dst_dir, exist_ok=True)
 
         try:
-            if os.path.isdir(file_path):
-                shutil.rmtree(file_path)
-            else:
-                os.remove(file_path)
-            logger.info(f"Deleted {file_name} from trash entry {entry.entry_name}")
-            return True, None
-        except Exception as e:
-            error_msg = f"Failed to delete {file_path}: {e}"
-            logger.error(error_msg)
-            return False, error_msg
+            shutil.move(src_path, dst_path)
+        except Exception as error:
+            # Rollback: delete database record if file move failed
+            await trash_repo.delete(trash)
+            raise InternalServerError(
+                f"Failed to move file to trash: {error}"
+            ) from error
 
-    async def _handle_delete_trash_by_path(
-        self,
-        session: AsyncSession,
-        task: Task,
-        progress_callback: Callable[[int, int], Awaitable[None]],
-    ) -> None:
-        """
-        Delete files in subdirectories of trash entries.
-
-        This method finds trash entries (directories) that match the given dir,
-        and then deletes the specified file_names from within those directories.
-        If dir is None, it will search all trash entries.
-        """
-        trash_repo = TrashRepository(session, self.storage_service)
-        total = len(task.file_names)
-        errors: list[str] = []
-        success_count = 0
-
-        # If dir is provided, use it for filtering; otherwise search all entries
-        if task.src_dir and task.src_dir.strip():
-            # Normalize the directory path for matching
-            normalized_dir = os.path.normpath(task.src_dir)
-            if normalized_dir == ".":
-                normalized_dir = "/"
-
-            # Find all trash entries whose original_path starts with the given dir
-            matching_entries = await trash_repo.get_by_original_path_prefix(
-                normalized_dir, user_id=task.user_id
+        # Handle directory recursion
+        if os.path.isdir(dst_path):
+            await self._trash_directory_recursive(
+                dst_path, original_path, trash_root, task, trash_repo
             )
 
-            if not matching_entries:
-                errors.append(f"No trash entries found for directory: {task.src_dir}")
-                for i in range(total):
-                    await progress_callback(i + 1, total)
-                raise Exception(f"Delete operation failed. Errors: {'; '.join(errors)}")
-        else:
-            # If dir is None, get all trash entries for the user
-
-            statement = select(Trash).where(Trash.user_id == task.user_id)
-            result = await session.execute(statement)
-            matching_entries = list(result.scalars().all())
-
-            if not matching_entries:
-                errors.append("No trash entries found")
-                for i in range(total):
-                    await progress_callback(i + 1, total)
-                raise Exception(f"Delete operation failed. Errors: {'; '.join(errors)}")
-
-        # For each file_name, try to delete it from matching trash entries
-        for i, file_name in enumerate(task.file_names):
-            file_deleted = False
-
-            for entry in matching_entries:
-                success, error_msg = self._delete_file_from_trash_entry(
-                    entry, file_name
+    async def _trash_directory_recursive(
+        self,
+        dir_path: str,
+        original_dir_path: str,
+        trash_root: str,
+        task: Task,
+        trash_repo: TrashRepository,
+    ) -> None:
+        """Recursively create Trash records for all files in a directory."""
+        # Walk through directory tree
+        for root, _dirs, files in os.walk(dir_path):
+            for file_name in files:
+                file_path = os.path.join(root, file_name)
+                # Calculate relative path from trash_root
+                relative_path = os.path.relpath(file_path, trash_root).replace(
+                    os.sep, "/"
                 )
-                if success:
-                    file_deleted = True
-                    success_count += 1
-                    break
-                if error_msg:
-                    errors.append(error_msg)
+                # Calculate original path
+                rel_from_dir = os.path.relpath(file_path, dir_path)
+                original_file_path = os.path.join(original_dir_path, rel_from_dir)
 
-            if not file_deleted:
-                errors.append(
-                    f"File {file_name} not found in any entries for directory "
-                    f"{task.src_dir}"
+                # Create Trash record for file
+                trash = Trash(
+                    user_id=task.user_id,
+                    entry_name=relative_path,
+                    original_path=original_file_path,
+                    deleted_at=task.created_at,
                 )
+                await trash_repo.create(trash)
 
-            await progress_callback(i + 1, total)
+    def _validate_trash_task_result(
+        self,
+        processed: int,
+        total_files: int,
+        failed_files: list[str],
+        task_id: int,
+    ) -> None:
+        """Validate trash task result and raise error if all files failed."""
+        # If all files failed, raise an error to mark task as FAILED
+        if processed == 0 and total_files > 0:
+            error_summary = f"All {total_files} file(s) failed to trash"
+            if failed_files:
+                error_summary += f": {', '.join(failed_files)}"
+            raise InternalServerError(error_summary)
+
+        # If some files failed, log warning but don't fail the task
+        if failed_files:
+            logger.warning(
+                f"Task {task_id}: {len(failed_files)} file(s) failed: "
+                f"{', '.join(failed_files)}"
+            )
+
+    def _validate_path(self, path: str) -> bool:
+        """Validate that path exists and is not a symlink."""
+        path = os.path.normpath(path)
+        return (
+            os.path.exists(path)
+            and not os.path.islink(path)
+            and not os.path.isjunction(path)
+        )
+
+    def _calculate_entry_name(
+        self, src_dir: str, file_name: str, trash_root: str
+    ) -> str:
+        """
+        Calculate entry_name preserving relative path structure.
+        """
+        src_path = os.path.join(src_dir, file_name)
+        # Get relative path from trash_root
+        try:
+            relative_path = os.path.relpath(src_path, trash_root)
+        except ValueError:
+            # If paths are on different drives (Windows), use file_name
+            relative_path = file_name
+        # Normalize path separators to forward slashes
+        return relative_path.replace(os.sep, "/")
+
+    async def _get_unique_entry_name(
+        self, trash_root: str, desired_entry_name: str, trash_repo: TrashRepository
+    ) -> str:
+        """
+        Generate unique entry_name handling conflicts.
+
+        If conflict exists, generates: name(1).ext, name(2).ext, etc.
+        """
+        # Check if desired name is available
+        if not os.path.exists(os.path.join(trash_root, desired_entry_name)):
+            existing = await trash_repo.find_by_entry_name(desired_entry_name)
+            if existing is None:
+                return desired_entry_name
+
+        # Conflict: generate unique name
+        name, ext = os.path.splitext(desired_entry_name)
+        counter = 1
+        while True:
+            new_name = f"{name}({counter}){ext}"
+            new_path = os.path.join(trash_root, new_name)
+            if not os.path.exists(new_path):
+                existing = await trash_repo.find_by_entry_name(new_name)
+                if existing is None:
+                    return new_name
+            counter += 1

@@ -12,8 +12,8 @@ class TrashRequest(BaseModel):
 
 
 class RestoreRequest(BaseModel):
-    dir: str | None = None  # Optional: relative path to trash root for validation
-    file_names: list[str]  # entry_name values from trash list
+    dir: str
+    file_names: list[str]
 
 
 class DeleteTrashRequest(BaseModel):
