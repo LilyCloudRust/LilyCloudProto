@@ -232,28 +232,37 @@ class TaskWorker:
         if not self._validate_path(src_path):
             raise NotFoundError(f"File not found: '{src_path}'.")
 
-        # Calculate entry_name (preserve relative path structure)
-        entry_name = self._calculate_entry_name(src_dir, file_name, trash_root)
+        # Get mount point for calculating entry_name
+        mount_point = os.path.dirname(trash_root)
 
-        # Handle name conflicts
-        unique_entry_name = await self._get_unique_entry_name(
-            trash_root, entry_name, trash_repo
+        # Collect all entries to create (before moving files)
+        entries = self._collect_all_entries(src_path, mount_point)
+
+        if not entries:
+            raise InternalServerError(f"No entries found for path: '{src_path}'.")
+
+        # Handle name conflicts for the top-level entry
+        top_entry = entries[0]
+        original_top_entry_name = top_entry["entry_name"]
+        unique_top_entry_name = await self._get_unique_entry_name(
+            trash_root, original_top_entry_name, trash_repo
         )
 
-        # Original path for restoration
-        original_path = os.path.join(src_dir, file_name)
+        # Batch create database records
+        trash_list = []
+        for entry in entries:
+            trash = Trash(
+                user_id=task.user_id,
+                entry_name=entry["entry_name"],
+                original_path=entry["original_path"],
+                deleted_at=task.created_at,
+            )
+            trash_list.append(trash)
 
-        # Create Trash database record
-        trash = Trash(
-            user_id=task.user_id,
-            entry_name=unique_entry_name,
-            original_path=original_path,
-            deleted_at=task.created_at,
-        )
-        trash = await trash_repo.create(trash)
+        await trash_repo.create_batch(trash_list)
 
-        # Move file to trash
-        dst_path = os.path.join(trash_root, unique_entry_name)
+        # Move file/directory to trash (single operation moves entire tree)
+        dst_path = os.path.join(trash_root, unique_top_entry_name)
         dst_dir = os.path.dirname(dst_path)
         if dst_dir:
             os.makedirs(dst_dir, exist_ok=True)
@@ -261,47 +270,110 @@ class TaskWorker:
         try:
             shutil.move(src_path, dst_path)
         except Exception as error:
-            # Rollback: delete database record if file move failed
-            await trash_repo.delete(trash)
+            # Rollback: delete database records if file move failed
+            entry_names = [entry["entry_name"] for entry in entries]
+            await trash_repo.delete_by_entry_names(entry_names)
             raise InternalServerError(
                 f"Failed to move file to trash: {error}"
             ) from error
 
-        # Handle directory recursion
-        if os.path.isdir(dst_path):
-            await self._trash_directory_recursive(
-                dst_path, original_path, trash_root, task, trash_repo
+    def _collect_all_entries(
+        self, src_path: str, mount_point: str
+    ) -> list[dict[str, str]]:
+        """
+        Collect all entries (files and directories) that need Trash records.
+
+        This method walks the source path before moving files, collecting
+        all entries that should be recorded in the database.
+
+        Args:
+            src_path: Source file or directory path
+            mount_point: Mount point path (for calculating relative entry_name)
+
+        Returns:
+            List of dicts with 'entry_name' and 'original_path' keys,
+            sorted with top-level entry first
+        """
+        entries: list[dict[str, str]] = []
+
+        if os.path.isfile(src_path):
+            # Single file
+            entry_name = os.path.relpath(src_path, mount_point).replace(os.sep, "/")
+            entries.append(
+                {
+                    "entry_name": entry_name,
+                    "original_path": src_path,
+                }
             )
+        else:
+            # Directory: walk through all contents
+            for root, _dirs, files in os.walk(src_path):
+                # Add directory entry
+                dir_entry_name = os.path.relpath(root, mount_point).replace(os.sep, "/")
+                entries.append(
+                    {
+                        "entry_name": dir_entry_name,
+                        "original_path": root,
+                    }
+                )
 
-    async def _trash_directory_recursive(
+                # Add file entries
+                for file_name in files:
+                    file_path = os.path.join(root, file_name)
+                    file_entry_name = os.path.relpath(file_path, mount_point).replace(
+                        os.sep, "/"
+                    )
+                    entries.append(
+                        {
+                            "entry_name": file_entry_name,
+                            "original_path": file_path,
+                        }
+                    )
+
+        return entries
+
+    def _adjust_entry_names(
         self,
-        dir_path: str,
-        original_dir_path: str,
-        trash_root: str,
-        task: Task,
-        trash_repo: TrashRepository,
-    ) -> None:
-        """Recursively create Trash records for all files in a directory."""
-        # Walk through directory tree
-        for root, _dirs, files in os.walk(dir_path):
-            for file_name in files:
-                file_path = os.path.join(root, file_name)
-                # Calculate relative path from trash_root
-                relative_path = os.path.relpath(file_path, trash_root).replace(
-                    os.sep, "/"
-                )
-                # Calculate original path
-                rel_from_dir = os.path.relpath(file_path, dir_path)
-                original_file_path = os.path.join(original_dir_path, rel_from_dir)
+        entries: list[dict[str, str]],
+        original_prefix: str,
+        new_prefix: str,
+    ) -> list[dict[str, str]]:
+        """
+        Adjust entry_names when top-level name changes due to conflicts.
 
-                # Create Trash record for file
-                trash = Trash(
-                    user_id=task.user_id,
-                    entry_name=relative_path,
-                    original_path=original_file_path,
-                    deleted_at=task.created_at,
+        Args:
+            entries: List of entry dicts with 'entry_name' keys
+            original_prefix: Original top-level entry_name
+            new_prefix: New top-level entry_name (after conflict resolution)
+
+        Returns:
+            List of entries with adjusted entry_names
+        """
+        adjusted_entries = []
+        for entry in entries:
+            entry_name = entry["entry_name"]
+            if entry_name == original_prefix:
+                # Top-level entry: use new name
+                adjusted_entries.append(
+                    {
+                        **entry,
+                        "entry_name": new_prefix,
+                    }
                 )
-                await trash_repo.create(trash)
+            elif entry_name.startswith(original_prefix + "/"):
+                # Sub-entry: replace prefix
+                relative_part = entry_name[len(original_prefix) + 1 :]
+                new_entry_name = f"{new_prefix}/{relative_part}"
+                adjusted_entries.append(
+                    {
+                        **entry,
+                        "entry_name": new_entry_name,
+                    }
+                )
+            else:
+                # Should not happen, but keep as-is
+                adjusted_entries.append(entry)
+        return adjusted_entries
 
     def _validate_trash_task_result(
         self,
@@ -333,22 +405,6 @@ class TaskWorker:
             and not os.path.islink(path)
             and not os.path.isjunction(path)
         )
-
-    def _calculate_entry_name(
-        self, src_dir: str, file_name: str, trash_root: str
-    ) -> str:
-        """
-        Calculate entry_name preserving relative path structure.
-        """
-        src_path = os.path.join(src_dir, file_name)
-        # Get relative path from trash_root
-        try:
-            relative_path = os.path.relpath(src_path, trash_root)
-        except ValueError:
-            # If paths are on different drives (Windows), use file_name
-            relative_path = file_name
-        # Normalize path separators to forward slashes
-        return relative_path.replace(os.sep, "/")
 
     async def _get_unique_entry_name(
         self, trash_root: str, desired_entry_name: str, trash_repo: TrashRepository

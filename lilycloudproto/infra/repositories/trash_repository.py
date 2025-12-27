@@ -19,6 +19,13 @@ class TrashRepository:
         await self.db.refresh(trash)
         return trash
 
+    async def create_batch(self, trash_list: list[Trash]) -> None:
+        """Batch create trash entries in the database."""
+        if not trash_list:
+            return
+        self.db.add_all(trash_list)
+        await self.db.commit()
+
     async def get_by_id(self, trash_id: int) -> Trash | None:
         """Retrieve a trash entry by ID. Returns None if not found."""
         result = await self.db.execute(select(Trash).where(Trash.trash_id == trash_id))
@@ -86,4 +93,11 @@ class TrashRepository:
     async def delete_all_by_user(self, user_id: int) -> None:
         """Delete all trash entries for a user."""
         await self.db.execute(delete(Trash).where(Trash.user_id == user_id))
+        await self.db.commit()
+
+    async def delete_by_entry_names(self, entry_names: list[str]) -> None:
+        """Delete multiple trash entries by entry_names."""
+        if not entry_names:
+            return
+        await self.db.execute(delete(Trash).where(Trash.entry_name.in_(entry_names)))
         await self.db.commit()
