@@ -12,8 +12,8 @@ class TrashRequest(BaseModel):
 
 
 class RestoreRequest(BaseModel):
-    dir: str
-    file_names: list[str]
+    dir: str | None = None  # Optional: relative path to trash root for validation
+    file_names: list[str]  # entry_name values from trash list
 
 
 class DeleteTrashRequest(BaseModel):
@@ -23,7 +23,7 @@ class DeleteTrashRequest(BaseModel):
     file_names: list[str] = []
 
 
-class TrashItem(BaseModel):
+class TrashEntry(BaseModel):
     trash_id: int
     user_id: int
     entry_name: str
@@ -37,6 +37,18 @@ class TrashItem(BaseModel):
     accessed_at: datetime | None = None
 
     model_config: ClassVar[ConfigDict] = {"from_attributes": True}
+
+
+class TrashFile(BaseModel):
+    name: str
+    path: str
+    type: str
+    size: int
+    mime_type: str | None
+    deleted_at: datetime
+    created_at: datetime | None = None
+    modified_at: datetime | None = None
+    accessed_at: datetime | None = None
 
 
 class TrashListQuery(BaseModel):
@@ -55,4 +67,4 @@ class TrashListQuery(BaseModel):
 class TrashResponse(BaseModel):
     path: str | None
     total: int
-    items: list[TrashItem]
+    items: list[TrashFile]

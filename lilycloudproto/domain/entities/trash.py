@@ -6,7 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from lilycloudproto.database import Base
 
 
-class TrashEntry(Base):
+class Trash(Base):
     __tablename__: str = "trash"
 
     trash_id: Mapped[int] = mapped_column(Integer, primary_key=True)

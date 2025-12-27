@@ -24,6 +24,7 @@ class StorageService:
         """
         Get the trash root directory for a given path.
         Follows AList strategy: .trash directory at the mount point (storage root).
+        If mount point is root (/), use user's home directory instead.
         """
         if not path:
             return os.path.abspath(".trash")
@@ -35,5 +36,10 @@ class StorageService:
             if parent == current_path:  # Reached root
                 break
             current_path = parent
+
+        # If mount point is root (/), use home directory to avoid permission issues
+        if current_path == "/":
+            home_dir = os.path.expanduser("~")
+            return os.path.join(home_dir, ".trash")
 
         return os.path.join(current_path, ".trash")
