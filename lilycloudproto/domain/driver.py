@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncGenerator, Awaitable, Callable
 
 from lilycloudproto.domain.values.files.file import File
 from lilycloudproto.domain.values.files.list import ListArgs
@@ -50,4 +50,16 @@ class Driver(ABC):
         file_names: list[str],
         progress_callback: Callable[[int, int], Awaitable[None]] | None = None,
     ) -> None:
+        pass
+
+    @abstractmethod
+    def read(self, path: str, chunk_size: int = 1024 * 64) -> AsyncGenerator[bytes]:
+        pass
+
+    @abstractmethod
+    async def write(self, path: str, content: bytes) -> None:
+        pass
+
+    @abstractmethod
+    async def get_link(self, path: str) -> str | None:
         pass

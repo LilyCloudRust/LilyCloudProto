@@ -2,10 +2,11 @@ import asyncio
 import mimetypes
 import os
 import shutil
-from collections.abc import Awaitable, Callable, Generator
+from collections.abc import AsyncGenerator, Awaitable, Callable, Generator
 from datetime import datetime
 from typing import override
 
+import aiofiles
 import magic
 
 from lilycloudproto.domain.driver import Driver
@@ -176,6 +177,27 @@ class LocalDriver(Driver):
             if progress_callback:
                 await progress_callback(index, total)
             await asyncio.sleep(0)
+
+    @override
+    async def write(self, path: str, content: bytes) -> None:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        async with aiofiles.open(path, "wb") as f:
+            _ = await f.write(content)
+
+    @override
+    async def read(
+        self, path: str, chunk_size: int = 1024 * 64
+    ) -> AsyncGenerator[bytes]:
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"File not found: {path}")
+        async with aiofiles.open(path, "rb") as f:
+            while chunk := await f.read(chunk_size):
+                yield chunk
+
+    @override
+    async def get_link(self, path: str) -> str | None:
+        # LocalDriver does not support generating links.
+        return None
 
     def _validate_directory(self, dir: str) -> None:
         dir = os.path.normpath(dir)

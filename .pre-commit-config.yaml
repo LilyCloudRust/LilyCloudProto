@@ -31,5 +31,6 @@ repos:
           - "python-magic>=0.4.27 ; sys_platform != 'win32'"
           - "scalar_fastapi>=1.4.3"
           - "sqlalchemy>=2.0.44"
+          - "types-aiofiles>=25.1.0.20251011"
           - "uvicorn>=0.38.0"
         args: ["--strict"]
