@@ -24,6 +24,7 @@ Request:
 Authorization: Bearer <access_token>
 {
   "path": "/Documents",
+  "scope:": "regular | trash | share",
   "sort_by": "name | size | created | modified | accessed | type",
   "sort_order": "asc | desc",
   "dir_first": true
@@ -47,7 +48,8 @@ Response:
       "mime_type": "inode/directory",
       "created_at": "2025-10-25T00:00:00Z",
       "modified_at": "2025-10-25T00:00:00Z",
-      "accessed_at": "2025-10-25T00:00:00Z"
+      "accessed_at": "2025-10-25T00:00:00Z",
+      "deleted_at": null
     },
     {
       "name": "report.pdf",
@@ -57,7 +59,8 @@ Response:
       "mime_type": "application/pdf",
       "created_at": "2025-10-25T00:00:00Z",
       "modified_at": "2025-10-25T00:00:00Z",
-      "accessed_at": "2025-10-25T00:00:00Z"
+      "accessed_at": "2025-10-25T00:00:00Z",
+      "deleted_at": null
     }
   ]
 }
@@ -74,7 +77,8 @@ Request:
 ```json
 Authorization: Bearer <access_token>
 {
-  "path": "/Documents/report.pdf"
+  "path": "/Documents/report.pdf",
+  "scope:": "regular | trash | share"
 }
 ```
 
@@ -89,7 +93,8 @@ Response:
   "mime_type": "application/pdf",
   "created_at": "2025-10-25T00:00:00Z",
   "modified_at": "2025-10-25T00:00:00Z",
-  "accessed_at": "2025-10-25T00:00:00Z"
+  "accessed_at": "2025-10-25T00:00:00Z",
+  "deleted_at": null
 }
 ```
 
@@ -106,10 +111,11 @@ Authorization: Bearer <access_token>
 {
   "keyword": "string",
   "path": "/Documents",
+  "scope:": "regular | trash | share",
   "recursive": true,
   "type": "file", // Optional: filter by type.
   "mime_type": "application/pdf", // Optional: filter by MIME type.
-  "sort_by": "name | size | created | modified | accessed | type",
+  "sort_by": "name | size | created | modified | accessed | deleted | type",
   "sort_order": "asc | desc",
   "dir_first": true
 }
@@ -132,7 +138,8 @@ Response:
       "mime_type": "inode/directory",
       "created_at": "2025-10-25T00:00:00Z",
       "modified_at": "2025-10-25T00:00:00Z",
-      "accessed_at": "2025-10-25T00:00:00Z"
+      "accessed_at": "2025-10-25T00:00:00Z",
+      "deleted_at": null
     },
     {
       "name": "report.pdf",
@@ -142,7 +149,8 @@ Response:
       "mime_type": "application/pdf",
       "created_at": "2025-10-25T00:00:00Z",
       "modified_at": "2025-10-25T00:00:00Z",
-      "accessed_at": "2025-10-25T00:00:00Z"
+      "accessed_at": "2025-10-25T00:00:00Z",
+      "deleted_at": null
     }
   ]
 }
@@ -483,14 +491,14 @@ Response:
   "type": "file",
   "size": 2048576, // In bytes.
   "mime_type": "application/pdf",
-  "deleted_at": "2025-10-25T00:00:00Z",
   "created_at": "2025-10-25T00:00:00Z",
   "modified_at": "2025-10-25T00:00:00Z",
-  "accessed_at": "2025-10-25T00:00:00Z"
+  "accessed_at": "2025-10-25T00:00:00Z",
+  "deleted_at": "2025-10-25T00:00:00Z"
 }
 ```
 
-### List Trashed Files
+## List Trash Entries
 
 ```http
 GET     /api/files/trash
@@ -499,44 +507,50 @@ GET     /api/files/trash
 Request:
 
 ```json
+Authorization: Bearer <access_token>
 {
   "keyword": "string",
-  "path": "/Documents", // Relative path to the trash root.
-  "recursive": true,
-  "type": "file", // Optional: filter by type.
-  "mime_type": "application/pdf", // Optional: filter by MIME type.
+  "user_id": 1,
+  "type": "file",
+  "mime_type": "application/pdf",
   "sort_by": "name | path | size | deleted | created | modified | accessed | type",
   "sort_order": "asc | desc",
   "dir_first": true
 }
 ```
 
-Response
+Response:
 
 ```json
 {
-  "path": "/Documents",
   "total": 100,
   "items": [
     {
-      "name": "photos",
-      "path": "/Documents/photos",
-      "type": "directory",
-      "size": 4096, // In bytes.
-      "mime_type": "inode/directory",
-      "created_at": "2025-10-25T00:00:00Z",
-      "modified_at": "2025-10-25T00:00:00Z",
-      "accessed_at": "2025-10-25T00:00:00Z"
-    },
-    {
-      "name": "report.pdf",
-      "path": "/Documents/report.pdf",
+      "trash_id": 1,
+      "user_id": 1,
+      "entry_name": "report.pdf",
+      "original_path": "/Documents/report.pdf",
       "type": "file",
-      "size": 2048576, // In bytes.
+      "size": 2048576,
       "mime_type": "application/pdf",
       "created_at": "2025-10-25T00:00:00Z",
       "modified_at": "2025-10-25T00:00:00Z",
-      "accessed_at": "2025-10-25T00:00:00Z"
+      "accessed_at": "2025-10-25T00:00:00Z",
+      "deleted_at": "2025-10-25T00:00:00Z"
+    },
+    {
+      "trash_id": 2,
+      "user_id": 1,
+      "entry_name": "notes.txt",
+      "original_path": "/Documents/notes.txt",
+      "type": "file",
+      "size": 1024,
+      "mime_type": "text/plain",
+      "deleted_at": "2025-10-26T00:00:00Z",
+      "created_at": "2025-10-20T00:00:00Z",
+      "modified_at": "2025-10-22T00:00:00Z",
+      "accessed_at": "2025-10-23T00:00:00Z",
+      "deleted_at": "2025-10-25T00:00:00Z"
     }
   ]
 }
