@@ -18,6 +18,10 @@ from lilycloudproto.infra.services.storage_service import StorageService
 
 logger = logging.getLogger(__name__)
 
+TRASH_DELETE_EMPTY = "__trash_empty__"
+TRASH_DELETE_IDS = "__trash_ids__"
+TRASH_DELETE_PATH = "__trash_path__"
+
 
 @dataclass
 class TaskPayload:
@@ -147,6 +151,16 @@ class TaskWorker:
         task: Task,
         progress_callback: Callable[[int, int], Awaitable[None]],
     ) -> None:
+        if task.dst_dirs and task.dst_dirs[0] in {
+            TRASH_DELETE_EMPTY,
+            TRASH_DELETE_IDS,
+            TRASH_DELETE_PATH,
+        }:
+            async with self.session_factory() as session:
+                repo = TrashRepository(session)
+                await self._process_delete_trash_task(task, repo, progress_callback)
+            return
+
         driver = self.storage_service.get_driver(
             task.src_dir or (task.dst_dirs[0] if task.dst_dirs else "")
         )
@@ -154,8 +168,87 @@ class TaskWorker:
             raise BadRequestError(
                 f"Source directory is required for DELETE task '{task.task_id}'."
             )
+
         src_dir = self.storage_service.get_physical_path(task.src_dir)
         await driver.delete(src_dir, task.file_names, progress_callback)
+
+    async def _process_delete_trash_task(  # noqa: PLR0912
+        self,
+        task: Task,
+        trash_repo: TrashRepository,
+        progress_callback: Callable[[int, int], Awaitable[None]],
+    ) -> None:
+        if not task.dst_dirs:
+            raise BadRequestError("Trash delete mode is required.")
+
+        mode_marker = task.dst_dirs[0]
+        dir_prefix = task.src_dir or ""
+        trash_root = self.storage_service.get_trash_root(dir_prefix)
+
+        records: list[Trash]
+        if mode_marker == TRASH_DELETE_EMPTY:
+            records = await trash_repo.list_by_user(task.user_id)
+        elif mode_marker == TRASH_DELETE_IDS:
+            try:
+                trash_ids = [int(item) for item in task.dst_dirs[1:]]
+            except ValueError as error:
+                raise BadRequestError("Invalid trash ids.") from error
+
+            records = await trash_repo.find_by_ids(trash_ids)
+            if len(records) != len(trash_ids) or any(
+                record.user_id != task.user_id for record in records
+            ):
+                raise NotFoundError("Trash entry not found.")
+        elif mode_marker == TRASH_DELETE_PATH:
+            if not task.file_names:
+                raise BadRequestError("file_names are required for delete path mode.")
+            records = await trash_repo.find_by_user_and_path(
+                task.user_id, dir_prefix, task.file_names
+            )
+            if len(records) != len(task.file_names):
+                raise NotFoundError("Trash entry not found.")
+        else:
+            raise BadRequestError("Invalid trash delete mode.")
+
+        total = len(records)
+        processed = 0
+        failed: list[str] = []
+
+        for record in records:
+            fs_path = self._ensure_inside_trash(trash_root, record.entry_name)
+            try:
+                if os.path.isdir(fs_path):
+                    shutil.rmtree(fs_path)
+                else:
+                    os.remove(fs_path)
+            except FileNotFoundError:
+                failed.append(record.entry_name)
+                continue
+            except Exception as error:  # pragma: no cover - defensive
+                logger.error(
+                    "Failed to remove trash entry '%s' in task '%s': %s",
+                    record.entry_name,
+                    task.task_id,
+                    error,
+                )
+                failed.append(record.entry_name)
+                continue
+
+            try:
+                await trash_repo.delete(record)
+                processed += 1
+                if progress_callback is not None:
+                    await progress_callback(processed, total)
+            except Exception as error:  # pragma: no cover - defensive
+                failed.append(record.entry_name)
+                logger.error(
+                    "Failed to delete trash record '%s' in task '%s': %s",
+                    record.entry_name,
+                    task.task_id,
+                    error,
+                )
+
+        self._validate_trash_task_result(processed, total, failed, task.task_id)
 
     async def _handle_trash(
         self,

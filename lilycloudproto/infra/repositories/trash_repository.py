@@ -54,6 +54,15 @@ class TrashRepository:
         trash_list = list(result.scalars().all())
         return {trash.entry_name: trash for trash in trash_list}
 
+    async def find_by_ids(self, trash_ids: list[int]) -> list[Trash]:
+        """Find trash entries by IDs."""
+        if not trash_ids:
+            return []
+        result = await self.db.execute(
+            select(Trash).where(Trash.trash_id.in_(trash_ids))
+        )
+        return list(result.scalars().all())
+
     async def find_by_user_and_path(
         self, user_id: int, dir: str, file_names: list[str]
     ) -> list[Trash]:

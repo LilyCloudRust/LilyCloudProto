@@ -17,8 +17,14 @@ from lilycloudproto.error import BadRequestError, ConflictError, NotFoundError
 from lilycloudproto.infra.repositories.trash_repository import TrashRepository
 from lilycloudproto.infra.services.storage_service import StorageService
 from lilycloudproto.infra.services.task_service import TaskService
+from lilycloudproto.infra.services.task_worker import (
+    TRASH_DELETE_EMPTY,
+    TRASH_DELETE_IDS,
+    TRASH_DELETE_PATH,
+)
 from lilycloudproto.models.task import TaskResponse
 from lilycloudproto.models.trash import (
+    DeleteTrashRequest,
     RestoreRequest,
     TrashEntry,
     TrashListQuery,
@@ -74,6 +80,21 @@ async def trash_files(
         file_names=request.file_names,
     )
     return task
+
+
+def _validate_delete_mode(request: DeleteTrashRequest) -> str:
+    modes: list[str] = []
+    if request.empty:
+        modes.append("empty")
+    if request.trash_ids:
+        modes.append("ids")
+    if request.file_names:
+        modes.append("path")
+    if len(modes) != 1:
+        raise BadRequestError(
+            "Provide exactly one delete mode: empty, trash_ids, or dir+file_names."
+        )
+    return modes[0]
 
 
 @router.post("/restore", response_model=TaskResponse)
@@ -241,3 +262,61 @@ async def list_trash_entries(
     paged = sorted_entries[start:end]
 
     return TrashResponse(path=query.path, total=total, items=paged)
+
+
+@router.delete("", response_model=TaskResponse)
+async def delete_trash_entries(
+    request: DeleteTrashRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    task_service: Annotated[TaskService, Depends(get_task_service)],
+    storage_service: Annotated[StorageService, Depends(get_storage_service)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> Task:
+    mode = _validate_delete_mode(request)
+
+    repo = TrashRepository(db)
+    dir_prefix = request.dir or ""
+    trash_root = storage_service.get_trash_root(dir_prefix)
+
+    if mode == "path":
+        records = await repo.find_by_user_and_path(
+            current_user.user_id, dir_prefix, request.file_names
+        )
+        if len(records) != len(request.file_names):
+            raise NotFoundError("Trash entry not found.")
+    elif mode == "ids":
+        records = await repo.find_by_ids(request.trash_ids)
+        if len(records) != len(request.trash_ids) or any(
+            record.user_id != current_user.user_id for record in records
+        ):
+            raise NotFoundError("Trash entry not found.")
+    else:  # empty
+        records = await repo.list_by_user(current_user.user_id)
+
+    for record in records:
+        fs_path = _ensure_inside_trash(trash_root, record.entry_name)
+        if not os.path.exists(fs_path) and mode != "empty":
+            raise NotFoundError("Trash entry not found.")
+
+    dst_dirs: list[str] = []
+    if mode == "ids":
+        dst_dirs = [
+            TRASH_DELETE_IDS,
+            *[str(trash_id) for trash_id in request.trash_ids],
+        ]
+    elif mode == "empty":
+        dst_dirs = [TRASH_DELETE_EMPTY]
+    else:
+        dst_dirs = [TRASH_DELETE_PATH]
+
+    file_names = request.file_names if mode == "path" else []
+    src_dir = dir_prefix if mode == "path" else ""
+
+    task = await task_service.add_task(
+        user_id=current_user.user_id,
+        type=TaskType.DELETE,
+        src_dir=src_dir,
+        dst_dirs=dst_dirs,
+        file_names=file_names,
+    )
+    return task
