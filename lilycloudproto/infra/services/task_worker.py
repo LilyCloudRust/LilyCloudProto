@@ -232,11 +232,8 @@ class TaskWorker:
         if not self._validate_path(src_path):
             raise NotFoundError(f"File not found: '{src_path}'.")
 
-        # Get mount point for calculating entry_name
-        mount_point = os.path.dirname(trash_root)
-
         # Collect all entries to create (before moving files)
-        entries = self._collect_all_entries(src_path, mount_point)
+        entries = self._collect_all_entries(src_path, src_dir)
 
         if not entries:
             raise InternalServerError(f"No entries found for path: '{src_path}'.")
@@ -247,6 +244,11 @@ class TaskWorker:
         unique_top_entry_name = await self._get_unique_entry_name(
             trash_root, original_top_entry_name, trash_repo
         )
+
+        if unique_top_entry_name != original_top_entry_name:
+            entries = self._adjust_entry_names(
+                entries, original_top_entry_name, unique_top_entry_name
+            )
 
         # Batch create database records
         trash_list = []
@@ -278,7 +280,7 @@ class TaskWorker:
             ) from error
 
     def _collect_all_entries(
-        self, src_path: str, mount_point: str
+        self, src_path: str, base_dir: str
     ) -> list[dict[str, str]]:
         """
         Collect all entries (files and directories) that need Trash records.
@@ -288,7 +290,7 @@ class TaskWorker:
 
         Args:
             src_path: Source file or directory path
-            mount_point: Mount point path (for calculating relative entry_name)
+            base_dir: Directory provided by request; entry_names are relative to this
 
         Returns:
             List of dicts with 'entry_name' and 'original_path' keys,
@@ -296,9 +298,12 @@ class TaskWorker:
         """
         entries: list[dict[str, str]] = []
 
+        # Normalize base_dir to ensure relative path calculation matches request context
+        normalized_base = os.path.normpath(base_dir)
+
         if os.path.isfile(src_path):
             # Single file
-            entry_name = os.path.relpath(src_path, mount_point).replace(os.sep, "/")
+            entry_name = os.path.relpath(src_path, normalized_base).replace(os.sep, "/")
             entries.append(
                 {
                     "entry_name": entry_name,
@@ -309,7 +314,9 @@ class TaskWorker:
             # Directory: walk through all contents
             for root, _dirs, files in os.walk(src_path):
                 # Add directory entry
-                dir_entry_name = os.path.relpath(root, mount_point).replace(os.sep, "/")
+                dir_entry_name = os.path.relpath(root, normalized_base).replace(
+                    os.sep, "/"
+                )
                 entries.append(
                     {
                         "entry_name": dir_entry_name,
@@ -320,9 +327,9 @@ class TaskWorker:
                 # Add file entries
                 for file_name in files:
                     file_path = os.path.join(root, file_name)
-                    file_entry_name = os.path.relpath(file_path, mount_point).replace(
-                        os.sep, "/"
-                    )
+                    file_entry_name = os.path.relpath(
+                        file_path, normalized_base
+                    ).replace(os.sep, "/")
                     entries.append(
                         {
                             "entry_name": file_entry_name,

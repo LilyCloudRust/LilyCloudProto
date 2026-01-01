@@ -24,9 +24,9 @@
    - Error handling with proper task status
 
 4. **StorageService.get_trash_root()** - Trash root calculation
-   - Location: `lilycloudproto/infra/services/storage_service.py`
-   - Temporarily infers mount point from src_path
-   - Returns `{mount_point}/.trash`
+    - Location: `lilycloudproto/infra/services/storage_service.py`
+    - **Now uses fixed trash root** (env `TRASH_ROOT` or `/tmp/lilycloud/.trash`)
+    - Ignores `src_path` for now; kept for future compatibility
 
 ### ❌ Pending Features
 
@@ -173,22 +173,7 @@ class Trash(Base):
 
 ### Entry Name Calculation
 
-**Current Implementation** (`TaskWorker._calculate_entry_name()`):
-```python
-def _calculate_entry_name(self, src_dir: str, file_name: str, trash_root: str) -> str:
-    src_path = os.path.join(src_dir, file_name)
-    # Get relative path from trash_root
-    relative_path = os.path.relpath(src_path, trash_root)
-    return relative_path.replace(os.sep, "/")
-```
-
-**Example**:
-- `src_dir = "/home/c10h15n/test/"`
-- `file_name = "Pictures"`
-- `trash_root = "/home/c10h15n/.trash"`
-- Result: `"test/Pictures"`
-
-**Note**: This calculates relative to `trash_root`, which may not be correct. Should be relative to mount point.
+**Current Implementation** (simplified): entry names are calculated relative to the request directory (`task.src_dir`), e.g., deleting `file.txt` from `/home/user/docs` produces `file.txt`; deleting directory `photos` yields `photos/...` for its children. No mount-point inference.
 
 ### Trash Root Calculation
 
@@ -223,15 +208,7 @@ def get_trash_root(self, src_path: str) -> str:
 
 ### 1. Path Calculation Issue
 
-**Problem**: `_calculate_entry_name()` uses `trash_root` as base, but should use mount point
-
-**Current**:
-- `entry_name = relpath(src_path, trash_root)` → `"../test/Pictures"` (wrong)
-
-**Should be**:
-- `entry_name = relpath(src_path, mount_point)` → `"test/Pictures"` (correct)
-
-**Fix Needed**: Update `_calculate_entry_name()` to use mount point instead of trash_root
+**Resolved**: Entry names now derive from the request directory (`task.src_dir`) with no mount/trash-root relative math. Trash root is fixed and decoupled from path calculation.
 
 ### 2. Empty Directory Handling
 

@@ -7,6 +7,8 @@ from lilycloudproto.infra.repositories.storage_repository import StorageReposito
 
 class StorageService:
     storage_repo: StorageRepository
+    # Temporary fixed trash root; future: derive from storage config/mount table.
+    DEFAULT_TRASH_ROOT: str = os.getenv("TRASH_ROOT", "/tmp/lilycloud/.trash")
 
     def __init__(self, storage_repo: StorageRepository) -> None:
         self.storage_repo = storage_repo
@@ -25,26 +27,20 @@ class StorageService:
 
     def get_trash_root(self, src_path: str) -> str:
         """
-        Get trash root directory from source path.
+        Get trash root directory.
 
-        Temporarily implemented by inferring mount point from src_path.
-        Future: Query Storage table for mount_path and use {mount_path}/.trash.
+        Temporary strategy: use a fixed trash root (env TRASH_ROOT or default),
+        ignoring src_path. Future versions should fetch mount info from storage
+        configuration and return the mount-specific trash directory.
 
         Args:
-            src_path: Source file path
+            src_path: Source file path (ignored for now, kept for API compatibility)
 
         Returns:
-            Trash root directory path (e.g., /mnt/data/.trash)
+            Trash root directory path
         """
-        # Temporarily: infer mount point from src_path
-        # Example: /mnt/data/user_1/Documents -> /mnt/data/.trash
-        user_root = self.get_user_root(0, src_path)  # user_id not needed for inference
-        # Get parent directory as mount point
-        mount_point = os.path.dirname(user_root)
-        if not mount_point or mount_point == os.sep:
-            # If no parent, use user_root as mount point
-            mount_point = user_root
-        return os.path.join(mount_point, ".trash")
+        _ = src_path  # placeholder until storage config is wired
+        return os.path.normpath(self.DEFAULT_TRASH_ROOT)
 
     def validate_user_path(self, user_id: int, path: str) -> bool:
         # Temporarily skipped
