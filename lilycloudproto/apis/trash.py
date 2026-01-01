@@ -13,12 +13,13 @@ from lilycloudproto.domain.entities.user import User
 from lilycloudproto.domain.values.files.file import File
 from lilycloudproto.domain.values.task import TaskType
 from lilycloudproto.domain.values.trash import TrashSortBy, TrashSortOrder
-from lilycloudproto.error import BadRequestError, NotFoundError
+from lilycloudproto.error import BadRequestError, ConflictError, NotFoundError
 from lilycloudproto.infra.repositories.trash_repository import TrashRepository
 from lilycloudproto.infra.services.storage_service import StorageService
 from lilycloudproto.infra.services.task_service import TaskService
 from lilycloudproto.models.task import TaskResponse
 from lilycloudproto.models.trash import (
+    RestoreRequest,
     TrashEntry,
     TrashListQuery,
     TrashRequest,
@@ -68,6 +69,43 @@ async def trash_files(
     task = await task_service.add_task(
         user_id=current_user.user_id,
         type=TaskType.TRASH,
+        src_dir=request.dir,
+        dst_dirs=[],
+        file_names=request.file_names,
+    )
+    return task
+
+
+@router.post("/restore", response_model=TaskResponse)
+async def restore_files(
+    request: RestoreRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    task_service: Annotated[TaskService, Depends(get_task_service)],
+    storage_service: Annotated[StorageService, Depends(get_storage_service)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> Task:
+    if not request.file_names:
+        raise BadRequestError("file_names cannot be empty.")
+
+    dir_prefix = request.dir or ""
+    repo = TrashRepository(db)
+    records = await repo.find_by_user_and_path(
+        current_user.user_id, dir_prefix, request.file_names
+    )
+    if len(records) != len(request.file_names):
+        raise NotFoundError("Trash entry not found.")
+
+    trash_root = storage_service.get_trash_root(dir_prefix)
+    for record in records:
+        fs_path = _ensure_inside_trash(trash_root, record.entry_name)
+        if not os.path.exists(fs_path):
+            raise NotFoundError("Trash entry not found.")
+        if os.path.exists(record.original_path):
+            raise ConflictError("Original path already exists.")
+
+    task = await task_service.add_task(
+        user_id=current_user.user_id,
+        type=TaskType.RESTORE,
         src_dir=request.dir,
         dst_dirs=[],
         file_names=request.file_names,

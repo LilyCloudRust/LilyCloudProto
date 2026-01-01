@@ -51,6 +51,7 @@ class TaskWorker:
             TaskType.MOVE: self._handle_move,
             TaskType.DELETE: self._handle_delete,
             TaskType.TRASH: self._handle_trash,
+            TaskType.RESTORE: self._handle_restore,
         }
 
     async def start(self) -> None:
@@ -218,6 +219,71 @@ class TaskWorker:
         self._validate_trash_task_result(
             processed, total_files, failed_files, task.task_id
         )
+
+    async def _handle_restore(
+        self,
+        task: Task,
+        progress_callback: Callable[[int, int], Awaitable[None]],
+    ) -> None:
+        """Handle RESTORE task: move files from trash back to original paths."""
+        async with self.session_factory() as session:
+            repo = TrashRepository(session)
+            await self._process_restore_task(task, repo, progress_callback)
+
+    async def _process_restore_task(
+        self,
+        task: Task,
+        trash_repo: TrashRepository,
+        progress_callback: Callable[[int, int], Awaitable[None]],
+    ) -> None:
+        if task.file_names is None:
+            raise BadRequestError(
+                f"file_names are required for RESTORE task '{task.task_id}'."
+            )
+
+        dir_prefix = task.src_dir or ""
+        trash_root = self.storage_service.get_trash_root(dir_prefix)
+
+        records = await trash_repo.find_by_user_and_path(
+            task.user_id, dir_prefix, task.file_names
+        )
+        if len(records) != len(task.file_names):
+            raise NotFoundError("Trash entry not found.")
+
+        total = len(records)
+        processed = 0
+        failed: list[str] = []
+
+        for record in records:
+            fs_path = self._ensure_inside_trash(trash_root, record.entry_name)
+            if not os.path.exists(fs_path):
+                failed.append(record.entry_name)
+                continue
+
+            if os.path.exists(record.original_path):
+                failed.append(record.entry_name)
+                continue
+
+            dst_parent = os.path.dirname(record.original_path)
+            if dst_parent:
+                os.makedirs(dst_parent, exist_ok=True)
+
+            try:
+                shutil.move(fs_path, record.original_path)
+                await trash_repo.delete(record)
+                processed += 1
+                if progress_callback is not None:
+                    await progress_callback(processed, total)
+            except Exception as error:  # pragma: no cover - defensive
+                failed.append(record.entry_name)
+                logger.error(
+                    "Failed to restore entry '%s' in task '%s': %s",
+                    record.entry_name,
+                    task.task_id,
+                    error,
+                )
+
+        self._validate_trash_task_result(processed, total, failed, task.task_id)
 
     async def _trash_single_file(
         self,
@@ -412,6 +478,14 @@ class TaskWorker:
             and not os.path.islink(path)
             and not os.path.isjunction(path)
         )
+
+    def _ensure_inside_trash(self, trash_root: str, entry_name: str) -> str:
+        """Ensure entry_name resolves inside trash_root and return joined path."""
+        normalized_root = os.path.normpath(trash_root)
+        candidate = os.path.normpath(os.path.join(normalized_root, entry_name))
+        if os.path.commonpath([normalized_root, candidate]) != normalized_root:
+            raise BadRequestError("Invalid entry path.")
+        return candidate
 
     async def _get_unique_entry_name(
         self, trash_root: str, desired_entry_name: str, trash_repo: TrashRepository
