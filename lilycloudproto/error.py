@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import HTTPException
 from sqlalchemy.exc import IntegrityError
 
@@ -92,3 +92,14 @@ def register_error_handlers(app: FastAPI) -> None:
         _request: Request, exception: InternalServerError
     ) -> None:
         raise HTTPException(status_code=500, detail=str(exception))
+
+    @app.exception_handler(Exception)
+    async def global_exception_handler(request: Request, exc: Exception) -> Response:
+        # 处理 WebDAV 的 401 认证挑战
+        if str(exc) == "Unauthorized" and request.url.path.startswith("/webdav"):
+            return Response(
+                status_code=401,
+                headers={"WWW-Authenticate": 'Basic realm="LilyCloud WebDAV"'},
+                content="Unauthorized",
+            )
+        raise HTTPException(status_code=500, detail="Internal Server Error")
