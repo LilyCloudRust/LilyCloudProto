@@ -39,18 +39,6 @@ class TrashEntry(BaseModel):
     model_config: ClassVar[ConfigDict] = {"from_attributes": True}
 
 
-class TrashFile(BaseModel):
-    name: str
-    path: str
-    type: str
-    size: int
-    mime_type: str | None
-    deleted_at: datetime
-    created_at: datetime | None = None
-    modified_at: datetime | None = None
-    accessed_at: datetime | None = None
-
-
 class TrashListQuery(BaseModel):
     page: int = Field(1, ge=1)
     page_size: int = Field(20, ge=1, le=100)
@@ -67,4 +55,4 @@ class TrashListQuery(BaseModel):
 class TrashResponse(BaseModel):
     path: str | None
     total: int
-    items: list[TrashFile]
+    items: list[TrashEntry]

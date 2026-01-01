@@ -38,6 +38,11 @@ class TrashRepository:
         )
         return result.scalar_one_or_none()
 
+    async def list_by_user(self, user_id: int) -> list[Trash]:
+        """List all trash entries for a user."""
+        result = await self.db.execute(select(Trash).where(Trash.user_id == user_id))
+        return list(result.scalars().all())
+
     async def find_by_entry_names(self, entry_names: list[str]) -> dict[str, Trash]:
         """Batch find trash entries by entry_names. Returns a dict mapping
         entry_name to Trash."""
