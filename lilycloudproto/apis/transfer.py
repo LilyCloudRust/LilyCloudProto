@@ -12,15 +12,14 @@ from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from lilycloudproto.config import AuthSettings
 from lilycloudproto.database import get_db
+from lilycloudproto.dependencies import get_auth_service
 from lilycloudproto.domain.entities.user import User
 from lilycloudproto.infra.drivers.local_driver import LocalDriver
 from lilycloudproto.infra.repositories.storage_repository import StorageRepository
-from lilycloudproto.infra.repositories.user_repository import UserRepository
 from lilycloudproto.infra.services.auth_service import AuthService
-from lilycloudproto.infra.services.file_transfer_service import FileTransferService
 from lilycloudproto.infra.services.storage_service import StorageService
+from lilycloudproto.infra.services.transfer_service import TransferService
 from lilycloudproto.models.files.transfer import BatchDownloadRequest
 from lilycloudproto.models.task import TaskResponse
 
@@ -29,19 +28,13 @@ router = APIRouter(prefix="/api/files", tags=["Files"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 
-async def get_auth_service(session: AsyncSession = Depends(get_db)) -> AuthService:
-    settings = AuthSettings()
-    user_repo = UserRepository(session)
-    return AuthService(user_repo=user_repo, settings=settings)
-
-
-def get_file_transfer_service(
+def _get_transfer_service(
     db: AsyncSession = Depends(get_db),
-) -> FileTransferService:
+) -> TransferService:
     driver = LocalDriver()
     storage_repo = StorageRepository(db)
     storage_service = StorageService(storage_repo)
-    return FileTransferService(
+    return TransferService(
         storage_driver=driver, storage_service=storage_service, db=db
     )
 
@@ -58,7 +51,7 @@ async def batch_upload(
     dir: str = Form(..., description="Target directory"),
     files: list[UploadFile] = File(..., description="Files to upload"),
     user: User = Depends(get_current_user_auth),
-    service: FileTransferService = Depends(get_file_transfer_service),
+    service: TransferService = Depends(_get_transfer_service),
 ) -> TaskResponse:
     """POST /api/files/upload - Batch Upload (Multipart)"""
     file_names = [f.filename for f in files if f.filename]
@@ -84,7 +77,7 @@ async def batch_upload(
 async def download_file(
     path: str = Query(..., description="Full path to the file"),
     user: User = Depends(get_current_user_auth),
-    service: FileTransferService = Depends(get_file_transfer_service),
+    service: TransferService = Depends(_get_transfer_service),
 ) -> Response:
     """
     GET /api/files - Single File Download
@@ -116,7 +109,7 @@ async def download_file(
 async def request_batch_download(
     request: BatchDownloadRequest,
     user: User = Depends(get_current_user_auth),
-    service: FileTransferService = Depends(get_file_transfer_service),
+    service: TransferService = Depends(_get_transfer_service),
 ) -> TaskResponse:
     """POST /api/files/download - Create a Task to zip multiple files"""
     task = await service.create_download_task(
@@ -130,7 +123,7 @@ async def download_archive(
     task_id: int,
     name: str = Query("download", description="Filename for the zip"),
     user: User = Depends(get_current_user_auth),
-    service: FileTransferService = Depends(get_file_transfer_service),
+    service: TransferService = Depends(_get_transfer_service),
 ) -> StreamingResponse:
     stream_gen = service.archive_stream_generator(task_id)
     return StreamingResponse(

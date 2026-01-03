@@ -13,11 +13,15 @@ from lilycloudproto.apis.admin.task import router as admin_task_router
 from lilycloudproto.apis.admin.user import router as admin_user_router
 from lilycloudproto.apis.auth import router as auth_router
 from lilycloudproto.apis.files import router as files_router
-from lilycloudproto.apis.files_transfer import router as files_transfer
+from lilycloudproto.apis.transfer import router as files_transfer
+from lilycloudproto.apis.webdav import router as webdav_router
+from lilycloudproto.config import AuthSettings
 from lilycloudproto.database import AsyncSessionLocal, init_db
 from lilycloudproto.error import TeapotError, register_error_handlers
 from lilycloudproto.infra.repositories.storage_repository import StorageRepository
 from lilycloudproto.infra.repositories.task_repository import TaskRepository
+from lilycloudproto.infra.repositories.user_repository import UserRepository
+from lilycloudproto.infra.services.auth_service import AuthService
 from lilycloudproto.infra.services.storage_service import StorageService
 from lilycloudproto.infra.services.task_service import TaskService
 
@@ -38,7 +42,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         task_service = TaskService(task_repo, AsyncSessionLocal, storage_service)
         app.state.task_service = task_service
 
-        # Start the task worker service.
+        # Create AuthService singleton.
+        user_repo = UserRepository(session)
+        auth_settings = AuthSettings()
+        auth_service = AuthService(user_repo, auth_settings)
+        app.state.auth_service = auth_service
+
+        # Start background task worker.
         background_task = asyncio.create_task(task_service.start())
         try:
             yield
@@ -59,6 +69,7 @@ app.include_router(admin_task_router)
 app.include_router(files_router)
 app.include_router(auth_router)
 app.include_router(files_transfer)
+app.include_router(webdav_router, prefix="/webdav", tags=["WebDAV"])
 
 
 @app.get("/", response_class=HTMLResponse)

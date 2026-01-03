@@ -41,6 +41,9 @@ class Driver(ABC):
         file_names: list[str],
         progress_callback: Callable[[int, int], Awaitable[None]] | None = None,
     ) -> None:
+        """
+        Batch move files into a destination directory (keeping original filenames).
+        """
         pass
 
     @abstractmethod
@@ -58,8 +61,29 @@ class Driver(ABC):
 
     @abstractmethod
     async def write(self, path: str, content: bytes) -> None:
+        """
+        Write all bytes to a file at once.
+        """
         pass
 
     @abstractmethod
     async def get_link(self, path: str) -> str | None:
+        pass
+
+    @abstractmethod
+    async def rename(self, src_path: str, dst_path: str) -> None:
+        """
+        Rename or move a file/directory from src_path to dst_path.
+        Crucial for WebDAV MOVE operations which often involve renaming.
+        """
+        pass
+
+    @abstractmethod
+    async def write_stream(
+        self, path: str, content_stream: AsyncGenerator[bytes]
+    ) -> None:
+        """
+        Write to a file using an async generator stream.
+        Crucial for WebDAV PUT operations with large files to avoid memory exhaustion.
+        """
         pass
