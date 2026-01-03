@@ -74,9 +74,9 @@ class TransferService:
             task.message = "Upload success"
             await self.db.commit()
 
-        except Exception as e:
+        except Exception as error:
             task.status = TaskStatus.FAILED
-            task.message = str(e)
+            task.message = str(error)
             await self.db.commit()
 
     async def create_download_task(
@@ -153,8 +153,8 @@ class TransferService:
                                 _ = dest_file.write(chunk)
                                 await asyncio.sleep(0)
 
-                    except Exception as e:
-                        error_msg = f"Error compressing {fname}: {e!s}"
+                    except Exception as error:
+                        error_msg = f"Error compressing {fname}: {error!s}"
                         zf.writestr(f"{fname}.error.txt", error_msg)
 
                     task.progress = (idx / total_files) * 100
@@ -173,11 +173,11 @@ class TransferService:
             task.progress = 100.0
             await self.db.commit()
 
-        except Exception as e:
+        except Exception as error:
             task.status = TaskStatus.FAILED
-            task.message = str(e)
+            task.message = str(error)
             await self.db.commit()
-            raise e
+            raise error
         finally:
             # Clean up the temporary file
             if os.path.exists(temp_path):

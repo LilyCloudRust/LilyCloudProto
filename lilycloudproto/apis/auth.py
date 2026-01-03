@@ -1,13 +1,8 @@
-from typing import Annotated
-
 from fastapi import APIRouter, Depends
-from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from lilycloudproto.config import auth_settings
-from lilycloudproto.database import get_db
+from lilycloudproto.apis.webdav import get_current_user
+from lilycloudproto.dependencies import get_auth_service
 from lilycloudproto.domain.entities.user import User
-from lilycloudproto.infra.repositories.user_repository import UserRepository
 from lilycloudproto.infra.services.auth_service import AuthService
 from lilycloudproto.models.auth import (
     LoginRequest,
@@ -20,22 +15,6 @@ from lilycloudproto.models.auth import (
 from lilycloudproto.models.user import UserResponse
 
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
-
-
-async def get_auth_service(db: AsyncSession = Depends(get_db)) -> AuthService:
-    """Dependency injection for AuthService."""
-    repo = UserRepository(db)
-    return AuthService(repo, auth_settings)
-
-
-async def get_current_user(
-    token: Annotated[str, Depends(oauth2_scheme)],
-    service: Annotated[AuthService, Depends(get_auth_service)],
-) -> User:
-    """Dependency to validate Token and get current User."""
-    return await service.get_user_from_token(token)
 
 
 @router.post("/register", response_model=UserResponse)

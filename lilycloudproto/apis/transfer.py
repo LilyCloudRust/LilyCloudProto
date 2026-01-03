@@ -12,8 +12,8 @@ from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from lilycloudproto.apis.auth import get_auth_service
 from lilycloudproto.database import get_db
+from lilycloudproto.dependencies import get_auth_service
 from lilycloudproto.domain.entities.user import User
 from lilycloudproto.infra.drivers.local_driver import LocalDriver
 from lilycloudproto.infra.repositories.storage_repository import StorageRepository

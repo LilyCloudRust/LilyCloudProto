@@ -14,18 +14,19 @@ from lilycloudproto.domain.values.files.file import File, Type
 from lilycloudproto.domain.values.files.list import ListArgs
 from lilycloudproto.domain.values.files.sort import SortBy, SortOrder
 from lilycloudproto.error import ConflictError, NotFoundError
+from lilycloudproto.infra.services.auth_service import AuthService
 
 router = APIRouter()
 security = HTTPBasic()
 
-# WebDAV XML Namespace
+# WebDAV XML Namespace.
 WEBDAV_NS = "DAV:"
 
 
 async def get_current_user(
-    credentials: Annotated[HTTPBasicCredentials, Depends(security)], request: Request
+    credentials: Annotated[HTTPBasicCredentials, Depends(security)],
+    auth_service: AuthService = Depends(get_auth_service),
 ) -> User:
-    auth_service = get_auth_service(request)
     user = await auth_service.authenticate_user_basic(
         credentials.username, credentials.password
     )
@@ -44,16 +45,16 @@ def create_prop_response(file: File, base_url: str) -> Element:
     propstat = SubElement(response, f"{{{WEBDAV_NS}}}propstat")
     prop = SubElement(propstat, f"{{{WEBDAV_NS}}}prop")
 
-    # Display Name
+    # Display Name.
     displayname = SubElement(prop, f"{{{WEBDAV_NS}}}displayname")
     displayname.text = file.name
 
-    # Resource Type
+    # Resource Type.
     resourcetype = SubElement(prop, f"{{{WEBDAV_NS}}}resourcetype")
     if file.type == Type.DIRECTORY:
         _ = SubElement(resourcetype, f"{{{WEBDAV_NS}}}collection")
 
-    # Properties
+    # Properties.
     if file.type == Type.FILE:
         getcontentlength = SubElement(prop, f"{{{WEBDAV_NS}}}getcontentlength")
         getcontentlength.text = str(file.size)
@@ -61,14 +62,14 @@ def create_prop_response(file: File, base_url: str) -> Element:
         getcontenttype = SubElement(prop, f"{{{WEBDAV_NS}}}getcontenttype")
         getcontenttype.text = file.mime_type
 
-    # Dates (RFC 1123 format)
+    # Dates (RFC 1123 format).
     creationdate = SubElement(prop, f"{{{WEBDAV_NS}}}creationdate")
     creationdate.text = file.created_at.isoformat()
 
     getlastmodified = SubElement(prop, f"{{{WEBDAV_NS}}}getlastmodified")
     getlastmodified.text = format_datetime(file.modified_at)
 
-    # Status
+    # Status.
     status_el = SubElement(propstat, f"{{{WEBDAV_NS}}}status")
     status_el.text = "HTTP/1.1 200 OK"
 
@@ -109,7 +110,9 @@ async def webdav_propfind(
         except Exception:
             pass
 
-    xml_str = tostring(multistatus, encoding="utf-8", xml_declaration=True)
+    xml_str = tostring(  # pyright: ignore[reportAny]
+        multistatus, encoding="utf-8", xml_declaration=True
+    )
     return Response(content=xml_str, status_code=207, media_type="application/xml")
 
 
@@ -133,8 +136,8 @@ async def webdav_get(
         )
     except NotFoundError:
         return Response(status_code=404)
-    except Exception as e:
-        return Response(status_code=500, content=str(e))
+    except Exception as error:
+        return Response(status_code=500, content=str(error))
 
 
 @router.put("/{path:path}")
@@ -146,8 +149,8 @@ async def webdav_put(
     try:
         await driver.write_stream(path, request.stream())
         return Response(status_code=201)
-    except Exception as e:
-        return Response(status_code=500, content=str(e))
+    except Exception as error:
+        return Response(status_code=500, content=str(error))
 
 
 @router.delete("/{path:path}")
@@ -166,8 +169,8 @@ async def webdav_delete(
         return Response(status_code=204)
     except NotFoundError:
         return Response(status_code=404)
-    except Exception as e:
-        return Response(status_code=500, content=str(e))
+    except Exception as error:
+        return Response(status_code=500, content=str(error))
 
 
 @router.api_route("/{path:path}", methods=["MKCOL"])
@@ -182,8 +185,8 @@ async def webdav_mkcol(
         return Response(status_code=201)
     except ConflictError:
         return Response(status_code=405)  # 405 Method Not Allowed / 409 Conflict
-    except Exception as e:
-        return Response(status_code=500, content=str(e))
+    except Exception as error:
+        return Response(status_code=500, content=str(error))
 
 
 @router.api_route("/{path:path}", methods=["MOVE", "COPY"])
@@ -231,8 +234,8 @@ async def webdav_move_copy(
         return Response(status_code=409)
     except NotFoundError:
         return Response(status_code=404)
-    except Exception as e:
-        return Response(status_code=500, content=str(e))
+    except Exception as error:
+        return Response(status_code=500, content=str(error))
 
 
 @router.options("/{path:path}")
