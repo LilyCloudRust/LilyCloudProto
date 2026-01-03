@@ -23,9 +23,7 @@ from lilycloudproto.error import (
 
 
 class LocalDriver(Driver):
-    def __init__(
-        self, root_path: str = "D:\\3-autumn\\SoftwareEnigneering\\webdav_storage"
-    ):
+    def __init__(self, root_path: str = os.path.join(os.getcwd(), "webdav")):
         self.root = os.path.abspath(root_path)
         if not os.path.exists(self.root):
             os.makedirs(self.root, exist_ok=True)
