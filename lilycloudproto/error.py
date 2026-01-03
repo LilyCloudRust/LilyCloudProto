@@ -95,7 +95,6 @@ def register_error_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception) -> Response:
-        # 处理 WebDAV 的 401 认证挑战
         if str(exc) == "Unauthorized" and request.url.path.startswith("/webdav"):
             return Response(
                 status_code=401,

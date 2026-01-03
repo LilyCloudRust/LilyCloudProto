@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query
 
+from lilycloudproto.dependencies import get_storage_service, get_task_service
 from lilycloudproto.domain.entities.task import Task
 from lilycloudproto.domain.values.files.file import File
 from lilycloudproto.domain.values.files.list import ListArgs
@@ -15,28 +16,6 @@ from lilycloudproto.models.files.search import SearchQuery, SearchResponse
 from lilycloudproto.models.task import TaskResponse
 
 router = APIRouter(prefix="/api/files", tags=["Files"])
-
-
-def get_storage_service(request: Request) -> StorageService:
-    service = getattr(
-        request.app.state,  # pyright: ignore[reportAny]
-        "storage_service",
-        None,
-    )
-    if not isinstance(service, StorageService):
-        raise RuntimeError("StorageService is not initialized on app.state")
-    return service
-
-
-def get_task_service(request: Request) -> TaskService:
-    service = getattr(
-        request.app.state,  # pyright: ignore[reportAny]
-        "task_service",
-        None,
-    )
-    if not isinstance(service, TaskService):
-        raise RuntimeError("TaskService is not initialized on app.state")
-    return service
 
 
 @router.get("/list", response_model=ListResponse)

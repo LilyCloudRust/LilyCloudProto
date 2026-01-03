@@ -16,7 +16,7 @@ from lilycloudproto.models.files.transfer import DownloadResource
 from lilycloudproto.models.task import TaskResponse
 
 
-class FileTransferService:
+class TransferService:
     driver: Driver
     storage_service: StorageService
     db: AsyncSession
@@ -150,7 +150,7 @@ class FileTransferService:
                             )
 
                             async for chunk in source_stream:
-                                dest_file.write(chunk)
+                                _ = dest_file.write(chunk)
                                 await asyncio.sleep(0)
 
                     except Exception as e:

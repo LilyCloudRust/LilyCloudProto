@@ -13,7 +13,7 @@ from lilycloudproto.apis.admin.task import router as admin_task_router
 from lilycloudproto.apis.admin.user import router as admin_user_router
 from lilycloudproto.apis.auth import router as auth_router
 from lilycloudproto.apis.files import router as files_router
-from lilycloudproto.apis.files_transfer import router as files_transfer
+from lilycloudproto.apis.transfer import router as files_transfer
 from lilycloudproto.apis.webdav import router as webdav_router
 from lilycloudproto.config import AuthSettings
 from lilycloudproto.database import AsyncSessionLocal, init_db
@@ -41,10 +41,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         task_repo = TaskRepository(session)
         task_service = TaskService(task_repo, AsyncSessionLocal, storage_service)
         app.state.task_service = task_service
+
+        # Create AuthService singleton.
         user_repo = UserRepository(session)
         auth_settings = AuthSettings()
         auth_service = AuthService(user_repo, auth_settings)
         app.state.auth_service = auth_service
+
+        # Start background task worker.
         background_task = asyncio.create_task(task_service.start())
         try:
             yield

@@ -48,6 +48,16 @@ class AuthService:
             raise AuthenticationError("Incorrect username or password") from None
         return self._generate_tokens(user)
 
+    async def authenticate_user_basic(
+        self, username: str, password: str
+    ) -> User | None:
+        user = await self.user_repo.get_by_username(username)
+        hash_to_verify = user.hashed_password if user else str(self._dummy_hash)
+        is_password_correct = self.password_hash.verify(password, hash_to_verify)
+        if user is None or not is_password_correct:
+            return None
+        return user
+
     async def register_user(self, username: str, password: str) -> User:
         hashed_password = self.password_hash.hash(password)
         user = User(username=username, hashed_password=hashed_password)
@@ -110,15 +120,3 @@ class AuthService:
         access_token = self._create_token(access_token_payload)
         refresh_token = self._create_token(refresh_token_payload)
         return access_token, refresh_token
-
-    async def authenticate_basic_user(
-        self, username: str, password: str
-    ) -> User | None:
-        user = await self.user_repo.get_by_username(username)
-        # 使用与 authenticate_user 相同的哈希验证逻辑
-        hash_to_verify = user.hashed_password if user else str(self._dummy_hash)
-        is_password_correct = self.password_hash.verify(password, hash_to_verify)
-
-        if user is None or not is_password_correct:
-            return None
-        return user

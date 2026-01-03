@@ -1,41 +1,32 @@
 import os
 import urllib.parse
 from email.utils import format_datetime
-from typing import Annotated, cast
+from typing import Annotated
 from xml.etree.ElementTree import Element, SubElement, tostring
 
 from fastapi import APIRouter, Depends, Header, Request, Response
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
+from lilycloudproto.dependencies import get_auth_service, get_storage_service
 from lilycloudproto.domain.entities.user import User
 from lilycloudproto.domain.values.files.file import File, Type
 from lilycloudproto.domain.values.files.list import ListArgs
 from lilycloudproto.domain.values.files.sort import SortBy, SortOrder
 from lilycloudproto.error import ConflictError, NotFoundError
-from lilycloudproto.infra.services.auth_service import AuthService
-from lilycloudproto.infra.services.storage_service import StorageService
 
 router = APIRouter()
 security = HTTPBasic()
 
 # WebDAV XML Namespace
-NS = "DAV:"
-
-
-def _get_auth_service(request: Request) -> AuthService:
-    return cast(AuthService, request.app.state.auth_service)
-
-
-def _get_storage_service(request: Request) -> StorageService:
-    return cast(StorageService, request.app.state.storage_service)
+WEBDAV_NS = "DAV:"
 
 
 async def get_current_user(
     credentials: Annotated[HTTPBasicCredentials, Depends(security)], request: Request
 ) -> User:
-    auth_service = _get_auth_service(request)
-    user = await auth_service.authenticate_basic_user(
+    auth_service = get_auth_service(request)
+    user = await auth_service.authenticate_user_basic(
         credentials.username, credentials.password
     )
     if not user:
@@ -44,42 +35,41 @@ async def get_current_user(
 
 
 def create_prop_response(file: File, base_url: str) -> Element:
-    """构建单个文件的 WebDAV XML 响应节点"""
-    response = Element(f"{{{NS}}}response")
-    href = SubElement(response, f"{{{NS}}}href")
+    response = Element(f"{{{WEBDAV_NS}}}response")
+    href = SubElement(response, f"{{{WEBDAV_NS}}}href")
     rel_path = file.path if file.path.startswith("/") else "/" + file.path
     safe_path = urllib.parse.quote(rel_path)
     href.text = f"/webdav{safe_path}"
 
-    propstat = SubElement(response, f"{{{NS}}}propstat")
-    prop = SubElement(propstat, f"{{{NS}}}prop")
+    propstat = SubElement(response, f"{{{WEBDAV_NS}}}propstat")
+    prop = SubElement(propstat, f"{{{WEBDAV_NS}}}prop")
 
     # Display Name
-    displayname = SubElement(prop, f"{{{NS}}}displayname")
+    displayname = SubElement(prop, f"{{{WEBDAV_NS}}}displayname")
     displayname.text = file.name
 
     # Resource Type
-    resourcetype = SubElement(prop, f"{{{NS}}}resourcetype")
+    resourcetype = SubElement(prop, f"{{{WEBDAV_NS}}}resourcetype")
     if file.type == Type.DIRECTORY:
-        SubElement(resourcetype, f"{{{NS}}}collection")
+        _ = SubElement(resourcetype, f"{{{WEBDAV_NS}}}collection")
 
     # Properties
     if file.type == Type.FILE:
-        getcontentlength = SubElement(prop, f"{{{NS}}}getcontentlength")
+        getcontentlength = SubElement(prop, f"{{{WEBDAV_NS}}}getcontentlength")
         getcontentlength.text = str(file.size)
 
-        getcontenttype = SubElement(prop, f"{{{NS}}}getcontenttype")
+        getcontenttype = SubElement(prop, f"{{{WEBDAV_NS}}}getcontenttype")
         getcontenttype.text = file.mime_type
 
     # Dates (RFC 1123 format)
-    creationdate = SubElement(prop, f"{{{NS}}}creationdate")
+    creationdate = SubElement(prop, f"{{{WEBDAV_NS}}}creationdate")
     creationdate.text = file.created_at.isoformat()
 
-    getlastmodified = SubElement(prop, f"{{{NS}}}getlastmodified")
+    getlastmodified = SubElement(prop, f"{{{WEBDAV_NS}}}getlastmodified")
     getlastmodified.text = format_datetime(file.modified_at)
 
     # Status
-    status_el = SubElement(propstat, f"{{{NS}}}status")
+    status_el = SubElement(propstat, f"{{{WEBDAV_NS}}}status")
     status_el.text = "HTTP/1.1 200 OK"
 
     return response
@@ -92,7 +82,7 @@ async def webdav_propfind(
     user: Annotated[User, Depends(get_current_user)],
     depth: Annotated[str | None, Header()] = "1",
 ) -> Response:
-    storage = _get_storage_service(request)
+    storage = get_storage_service(request)
     real_path = path if path else "."
 
     driver = storage.get_driver(real_path)
@@ -102,8 +92,8 @@ async def webdav_propfind(
     except NotFoundError:
         return Response(status_code=404)
 
-    multistatus = Element(f"{{{NS}}}multistatus")
-    multistatus.set("xmlns:D", NS)
+    multistatus = Element(f"{{{WEBDAV_NS}}}multistatus")
+    multistatus.set("xmlns:D", WEBDAV_NS)
     multistatus.append(create_prop_response(current_file, str(request.base_url)))
 
     if current_file.type == Type.DIRECTORY and depth != "0":
@@ -127,7 +117,7 @@ async def webdav_propfind(
 async def webdav_get(
     path: str, request: Request, user: Annotated[User, Depends(get_current_user)]
 ) -> Response:
-    storage = _get_storage_service(request)
+    storage = get_storage_service(request)
     driver = storage.get_driver(path)
 
     try:
@@ -151,7 +141,7 @@ async def webdav_get(
 async def webdav_put(
     path: str, request: Request, user: Annotated[User, Depends(get_current_user)]
 ) -> Response:
-    storage = _get_storage_service(request)
+    storage = get_storage_service(request)
     driver = storage.get_driver(path)
     try:
         await driver.write_stream(path, request.stream())
@@ -164,7 +154,7 @@ async def webdav_put(
 async def webdav_delete(
     path: str, request: Request, user: Annotated[User, Depends(get_current_user)]
 ) -> Response:
-    storage = _get_storage_service(request)
+    storage = get_storage_service(request)
     driver = storage.get_driver(path)
     dirname = os.path.dirname(path)
     basename = os.path.basename(path)
@@ -184,11 +174,11 @@ async def webdav_delete(
 async def webdav_mkcol(
     path: str, request: Request, user: Annotated[User, Depends(get_current_user)]
 ) -> Response:
-    storage = _get_storage_service(request)
+    storage = get_storage_service(request)
     driver = storage.get_driver(path)
 
     try:
-        driver.mkdir(path)
+        _ = driver.mkdir(path)
         return Response(status_code=201)
     except ConflictError:
         return Response(status_code=405)  # 405 Method Not Allowed / 409 Conflict
@@ -204,10 +194,9 @@ async def webdav_move_copy(
     destination: Annotated[str, Header()],
 ) -> Response:
     """
-    处理 MOVE 和 COPY 请求。
-    WebDAV 的 Destination Header 通常包含完整的 URL (e.g., http://host/webdav/dst)。
+    Handle MOVE and COPY WebDAV methods.
     """
-    storage = _get_storage_service(request)
+    storage = get_storage_service(request)
     driver = storage.get_driver(path)
     parsed_dest = urllib.parse.urlparse(destination)
     dest_path_raw = parsed_dest.path
@@ -247,7 +236,7 @@ async def webdav_move_copy(
 
 
 @router.options("/{path:path}")
-async def webdav_options(path: str) -> Response:
+async def webdav_options(_path: str) -> Response:
     return Response(
         headers={
             "DAV": "1, 2",

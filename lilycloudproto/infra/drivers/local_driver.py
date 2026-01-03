@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import override
 
 import aiofiles
-import magic  # type: ignore
+import magic
 
 from lilycloudproto.domain.driver import Driver
 from lilycloudproto.domain.values.files.file import File, Type
@@ -260,7 +260,7 @@ class LocalDriver(Driver):
         try:
             async with aiofiles.open(physical_path, "wb") as f:
                 async for chunk in content_stream:
-                    await f.write(chunk)
+                    _ = await f.write(chunk)
         except Exception as error:
             raise InternalServerError(
                 f"Failed to write stream to '{path}': {error}"
@@ -286,7 +286,11 @@ class LocalDriver(Driver):
         if mime_type:
             return mime_type
         if os.path.isfile(path):
-            return str(magic.from_file(path, mime=True))  # pyright: ignore
+            return str(
+                magic.from_file(  # pyright: ignore[reportUnknownMemberType]
+                    path, mime=True
+                )
+            )
         return "inode/directory"
 
     def _entry_to_file(self, entry: os.DirEntry[str], logical_path: str) -> File:
@@ -331,7 +335,6 @@ class LocalDriver(Driver):
         return True
 
     def _sort_files(self, files: list[File], args: SortArgs) -> list[File]:
-
         reverse = args.sort_order == "desc"
         sort_key: dict[str, Callable[[File], str | int | float | datetime]] = {
             "name": lambda file: file.name,

@@ -3,10 +3,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from lilycloudproto.database import get_db
+from lilycloudproto.dependencies import get_auth_service
 from lilycloudproto.domain.entities.user import User
 from lilycloudproto.domain.values.user import ListArgs
 from lilycloudproto.error import ConflictError, NotFoundError
 from lilycloudproto.infra.repositories.user_repository import UserRepository
+from lilycloudproto.infra.services.auth_service import AuthService
 from lilycloudproto.models.user import (
     MessageResponse,
     UserCreate,
@@ -79,6 +81,7 @@ async def update_user(
     user_id: int,
     data: UserUpdate,
     db: AsyncSession = Depends(get_db),
+    auth_service: AuthService = Depends(get_auth_service),
 ) -> UserResponse:
     """Update user details."""
     repo = UserRepository(db)
@@ -88,7 +91,7 @@ async def update_user(
     if data.username is not None:
         user.username = data.username
     if data.password is not None:
-        user.hashed_password = data.password
+        user.hashed_password = auth_service.password_hash.hash(data.password)
     # Check for duplicate username.
     try:
         updated = await repo.update(user)
