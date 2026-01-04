@@ -7,17 +7,17 @@ from lilycloudproto.domain.values.files.file import Type
 from lilycloudproto.domain.values.trash import SortBy, SortOrder
 
 
-class TrashFilesRequest(BaseModel):
+class TrashCommand(BaseModel):
     dir: str
     file_names: list[str]
 
 
-class TrashRestoreRequest(BaseModel):
+class RestoreCommand(BaseModel):
     dir: str
     file_names: list[str]
 
 
-class TrashDeleteRequest(BaseModel):
+class DeleteCommand(BaseModel):
     empty: bool = False
     trash_ids: list[int] = Field(default_factory=list)
     dir: str | None = None

@@ -16,7 +16,7 @@ from lilycloudproto.domain.values.files.sort import SortBy, SortOrder
 from lilycloudproto.error import ConflictError, NotFoundError
 from lilycloudproto.infra.services.auth_service import AuthService
 
-router = APIRouter()
+router = APIRouter(prefix="/webdav", tags=["WebDAV"])
 security = HTTPBasic()
 
 # WebDAV XML Namespace.
