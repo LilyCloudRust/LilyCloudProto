@@ -265,6 +265,78 @@ class LocalDriver(Driver):
         except Exception as error:
             raise InternalServerError(f"Failed to rename: {error}") from error
 
+    @override
+    async def trash(
+        self,
+        dir: str,
+        file_names: list[str],
+        progress_callback: Callable[[int, int], Awaitable[None]] | None = None,
+    ) -> None:
+        """
+        Move files from dir to trash_path.
+        """
+        total = len(file_names)
+        phys_src_dir = self._get_physical_path(dir)
+        self._validate_directory(phys_src_dir)
+
+        for index, name in enumerate(file_names, 1):
+            src_path = os.path.join(phys_src_dir, name)
+            if not self._validate_path(src_path):
+                continue
+
+            # Move to trash root.
+            trash_dst = os.path.join(self.trash_path, name)
+            # Ensure no overwrite in trash.
+            if os.path.exists(trash_dst):
+                raise ConflictError(f"Trash already contains a file named '{name}'.")
+
+            try:
+                _ = shutil.move(src_path, trash_dst)
+            except Exception as error:
+                raise InternalServerError(
+                    f"Failed to move '{name}' to trash: {error}."
+                ) from error
+
+            if progress_callback:
+                await progress_callback(index, total)
+            await asyncio.sleep(0)
+
+    @override
+    async def restore(
+        self,
+        src_paths: list[str],
+        dst_paths: list[str],
+        progress_callback: Callable[[int, int], Awaitable[None]] | None = None,
+    ) -> None:
+        """
+        Move files from trash_path (src_paths, relative to trash root) to dst_paths.
+        """
+        if len(src_paths) != len(dst_paths):
+            raise ValueError("src_paths and dst_paths must have the same length.")
+        total = len(src_paths)
+
+        for index, (src_rel, dst_rel) in enumerate(
+            zip(src_paths, dst_paths, strict=True), 1
+        ):
+            trash_src = os.path.join(self.trash_path, src_rel.lstrip("/\\"))
+            restore_dst = self._get_physical_path(dst_rel)
+
+            if not self._validate_path(trash_src):
+                continue
+
+            os.makedirs(os.path.dirname(restore_dst), exist_ok=True)
+
+            try:
+                _ = shutil.move(trash_src, restore_dst)
+            except Exception as error:
+                raise InternalServerError(
+                    f"Failed to restore '{src_rel}' to '{dst_rel}': {error}"
+                ) from error
+
+            if progress_callback:
+                await progress_callback(index, total)
+            await asyncio.sleep(0)
+
     def _get_physical_path(self, logical_path: str) -> str:
         logical_path = logical_path.lstrip("/\\")
         physical_path = os.path.join(self.root_path, logical_path)

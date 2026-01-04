@@ -73,3 +73,21 @@ class Driver(ABC):
     @abstractmethod
     async def rename(self, src_path: str, dst_path: str) -> None:
         pass
+
+    @abstractmethod
+    async def trash(
+        self,
+        dir: str,
+        file_names: list[str],
+        progress_callback: Callable[[int, int], Awaitable[None]] | None = None,
+    ) -> None:
+        pass
+
+    @abstractmethod
+    async def restore(
+        self,
+        src_paths: list[str],
+        dst_paths: list[str],
+        progress_callback: Callable[[int, int], Awaitable[None]] | None = None,
+    ) -> None:
+        pass
