@@ -1,4 +1,8 @@
+import os
+
 from lilycloudproto.domain.driver import Driver
+from lilycloudproto.domain.entities.storage import Storage
+from lilycloudproto.domain.values.storage import LocalConfig, StorageType
 from lilycloudproto.infra.drivers.local_driver import LocalDriver
 from lilycloudproto.infra.repositories.storage_repository import StorageRepository
 
@@ -10,7 +14,21 @@ class StorageService:
         self.storage_repo = storage_repo
 
     def get_driver(self, _path: str) -> Driver:
-        return LocalDriver()
+        # Create a temporary LocalConfig
+        config = LocalConfig(
+            root_path=os.path.join(os.getcwd(), "webdav"),
+            trash_path=os.path.join(os.getcwd(), "webdav", ".Trash"),
+        ).model_dump()
+
+        # Create a temporary Storage entity
+        storage = Storage(
+            storage_id=0,
+            mount_path="/",
+            type=StorageType.LOCAL,
+            config=config,
+            enabled=True,
+        )
+        return LocalDriver(storage)
 
     def get_physical_path(self, path: str) -> str:
         return path

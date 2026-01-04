@@ -10,10 +10,12 @@ import aiofiles
 import magic
 
 from lilycloudproto.domain.driver import Driver
+from lilycloudproto.domain.entities.storage import Storage
 from lilycloudproto.domain.values.files.file import File, Type
 from lilycloudproto.domain.values.files.list import ListArgs
 from lilycloudproto.domain.values.files.search import SearchArgs
 from lilycloudproto.domain.values.files.sort import SortArgs
+from lilycloudproto.domain.values.storage import LocalConfig, StorageType
 from lilycloudproto.error import (
     BadRequestError,
     ConflictError,
@@ -23,19 +25,27 @@ from lilycloudproto.error import (
 
 
 class LocalDriver(Driver):
-    def __init__(self, root_path: str = os.path.join(os.getcwd(), "webdav")):
-        self.root = os.path.abspath(root_path)
-        if not os.path.exists(self.root):
-            os.makedirs(self.root, exist_ok=True)
+    root_path: str
+    trash_path: str
 
-    def _get_physical_path(self, client_path: str) -> str:
-        safe_client_path = client_path.lstrip("/\\")
-        physical_path = os.path.join(self.root, safe_client_path)
-        physical_path = os.path.normpath(physical_path)
-        if not physical_path.startswith(self.root):
-            pass
+    def __init__(self, storage: Storage):
+        super().__init__(storage)
+        try:
+            if storage.type != StorageType.LOCAL:
+                raise ValueError(
+                    f"LocalDriver requires storage type 'local', got '{storage.type}'"
+                )
+            config = LocalConfig.model_validate(storage.config)
+        except Exception as error:
+            raise ValueError(f"Invalid Local storage config: {error}") from error
 
-        return physical_path
+        self.root_path = os.path.abspath(config.root_path)
+        self.trash_path = os.path.abspath(config.trash_path)
+
+        if not os.path.exists(self.root_path):
+            os.makedirs(self.root_path, exist_ok=True)
+        if not os.path.exists(self.trash_path):
+            os.makedirs(self.trash_path, exist_ok=True)
 
     @override
     def list_dir(self, args: ListArgs) -> list[File]:
@@ -85,7 +95,7 @@ class LocalDriver(Driver):
                 and self._match_entry(entry, args)
             ):
                 try:
-                    rel_path = os.path.relpath(entry.path, self.root)
+                    rel_path = os.path.relpath(entry.path, self.root_path)
                 except ValueError:
                     continue
                 logical_path = rel_path.replace("\\", "/")
@@ -254,6 +264,15 @@ class LocalDriver(Driver):
             _ = shutil.move(phys_src_path, phys_dst_path)
         except Exception as error:
             raise InternalServerError(f"Failed to rename: {error}") from error
+
+    def _get_physical_path(self, logical_path: str) -> str:
+        logical_path = logical_path.lstrip("/\\")
+        physical_path = os.path.join(self.root_path, logical_path)
+        physical_path = os.path.normpath(physical_path)
+        if not physical_path.startswith(self.root_path):
+            pass
+
+        return physical_path
 
     def _validate_directory(self, dir: str) -> None:
         dir = os.path.normpath(dir)

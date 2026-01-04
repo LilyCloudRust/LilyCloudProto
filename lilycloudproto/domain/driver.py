@@ -1,12 +1,18 @@
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator, Awaitable, Callable
 
+from lilycloudproto.domain.entities.storage import Storage
 from lilycloudproto.domain.values.files.file import File
 from lilycloudproto.domain.values.files.list import ListArgs
 from lilycloudproto.domain.values.files.search import SearchArgs
 
 
 class Driver(ABC):
+    storage: Storage
+
+    def __init__(self, storage: Storage):
+        self.storage = storage
+
     @abstractmethod
     def list_dir(self, args: ListArgs) -> list[File]:
         pass

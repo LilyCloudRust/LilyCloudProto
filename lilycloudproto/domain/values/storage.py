@@ -11,6 +11,7 @@ class StorageType(str, Enum):
 
 class LocalConfig(BaseModel):
     root_path: str
+    trash_path: str
 
 
 class S3Config(BaseModel):
