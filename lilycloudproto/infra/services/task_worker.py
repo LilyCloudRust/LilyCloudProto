@@ -7,10 +7,13 @@ from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from lilycloudproto.domain.driver import Base
 from lilycloudproto.domain.entities.task import Task
+from lilycloudproto.domain.entities.trash import Trash
 from lilycloudproto.domain.values.task import TaskStatus, TaskType
 from lilycloudproto.error import BadRequestError, NotFoundError
 from lilycloudproto.infra.repositories.task_repository import TaskRepository
+from lilycloudproto.infra.repositories.trash_repository import TrashRepository
 from lilycloudproto.infra.services.storage_service import StorageService
 
 logger = logging.getLogger(__name__)
@@ -165,6 +168,29 @@ class TaskWorker:
             )
         driver = self.storage_service.get_driver(task.src_dir)
         await driver.trash(task.src_dir, task.file_names, progress_callback)
+        driver = self.storage_service.get_driver(task.src_dir, Base.TRASH)
+
+        # Record all info in the Trash table.
+        async with self.session_factory() as session:
+            trash_repo = TrashRepository(session)
+            now = datetime.now(UTC)
+            trash_entries: list[Trash] = []
+            for name in task.file_names:
+                file_info = driver.info(name)
+                trash_entry = Trash(
+                    user_id=task.user_id,
+                    entry_name=file_info.name,
+                    original_path=os.path.join(task.src_dir, name),
+                    deleted_at=now,
+                    size=file_info.size,
+                    type=file_info.type,
+                    mime_type=file_info.mime_type,
+                    created_at=file_info.created_at,
+                    modified_at=file_info.modified_at,
+                    accessed_at=file_info.accessed_at,
+                )
+                trash_entries.append(trash_entry)
+            await trash_repo.create_batch(trash_entries)
 
     async def _handle_restore(
         self,

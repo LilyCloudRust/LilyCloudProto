@@ -20,6 +20,11 @@ class TrashRepository:
         await self.db.refresh(trash)
         return trash
 
+    async def create_batch(self, trashes: list[Trash]) -> None:
+        """Batch create trash entries in the database."""
+        self.db.add_all(trashes)
+        await self.db.commit()
+
     async def get_by_id(self, trash_id: int) -> Trash | None:
         """Retrieve a trash entry by ID. Returns None if not found."""
         result = await self.db.execute(select(Trash).where(Trash.trash_id == trash_id))
@@ -44,7 +49,7 @@ class TrashRepository:
         if args.mime_type:
             statement = statement.where(Trash.mime_type == args.mime_type)
 
-        # Map sort_by to Trash columns
+        # Map sort_by to Trash columns.
         field_map = {
             SortBy.NAME: Trash.entry_name,
             SortBy.PATH: getattr(Trash, "original_path", Trash.entry_name),

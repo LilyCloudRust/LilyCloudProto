@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator, Awaitable, Callable
+from enum import Enum
 
 from lilycloudproto.domain.entities.storage import Storage
 from lilycloudproto.domain.values.files.file import File
@@ -7,11 +8,19 @@ from lilycloudproto.domain.values.files.list import ListArgs
 from lilycloudproto.domain.values.files.search import SearchArgs
 
 
+class Base(str, Enum):
+    REGULAR = "regular"
+    TRASH = "trash"
+    SHARE = "share"
+
+
 class Driver(ABC):
     storage: Storage
+    base: Base
 
-    def __init__(self, storage: Storage):
+    def __init__(self, storage: Storage, base: Base = Base.REGULAR):
         self.storage = storage
+        self.base = base
 
     @abstractmethod
     def list_dir(self, args: ListArgs) -> list[File]:

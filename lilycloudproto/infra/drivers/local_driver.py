@@ -9,7 +9,7 @@ from typing import override
 import aiofiles
 import magic
 
-from lilycloudproto.domain.driver import Driver
+from lilycloudproto.domain.driver import Base, Driver
 from lilycloudproto.domain.entities.storage import Storage
 from lilycloudproto.domain.values.files.file import File, Type
 from lilycloudproto.domain.values.files.list import ListArgs
@@ -27,8 +27,9 @@ from lilycloudproto.error import (
 class LocalDriver(Driver):
     root_path: str
     trash_path: str
+    base: Base
 
-    def __init__(self, storage: Storage):
+    def __init__(self, storage: Storage, base: Base = Base.REGULAR):
         super().__init__(storage)
         try:
             if storage.type != StorageType.LOCAL:
@@ -41,6 +42,7 @@ class LocalDriver(Driver):
 
         self.root_path = os.path.abspath(config.root_path)
         self.trash_path = os.path.abspath(config.trash_path)
+        self.base = base
 
         if not os.path.exists(self.root_path):
             os.makedirs(self.root_path, exist_ok=True)
@@ -339,11 +341,19 @@ class LocalDriver(Driver):
 
     def _get_physical_path(self, logical_path: str) -> str:
         logical_path = logical_path.lstrip("/\\")
-        physical_path = os.path.join(self.root_path, logical_path)
+        if self.base == Base.REGULAR:
+            root = self.root_path
+        elif self.base == Base.TRASH:
+            root = self.trash_path
+        elif self.base == Base.SHARE:
+            # Update when share functionality is implemented.
+            root = self.root_path
+        else:
+            raise ValueError(f"Unknown base: {self.base}")
+        physical_path = os.path.join(root, logical_path)
         physical_path = os.path.normpath(physical_path)
-        if not physical_path.startswith(self.root_path):
-            pass
-
+        if not physical_path.startswith(root):
+            raise BadRequestError("Path traversal detected.")
         return physical_path
 
     def _validate_directory(self, dir: str) -> None:
