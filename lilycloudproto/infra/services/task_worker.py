@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -46,6 +47,8 @@ class TaskWorker:
             TaskType.COPY: self._handle_copy,
             TaskType.MOVE: self._handle_move,
             TaskType.DELETE: self._handle_delete,
+            TaskType.TRASH: self._handle_trash,
+            TaskType.RESTORE: self._handle_restore,
         }
 
     async def start(self) -> None:
@@ -150,3 +153,33 @@ class TaskWorker:
             )
         src_dir = self.storage_service.get_physical_path(task.src_dir)
         await driver.delete(src_dir, task.file_names, progress_callback)
+
+    async def _handle_trash(
+        self,
+        task: Task,
+        progress_callback: Callable[[int, int], Awaitable[None]],
+    ) -> None:
+        if not task.src_dir:
+            raise BadRequestError(
+                f"Source directory is required for TRASH task '{task.task_id}'."
+            )
+        driver = self.storage_service.get_driver(task.src_dir)
+        await driver.trash(task.src_dir, task.file_names, progress_callback)
+
+    async def _handle_restore(
+        self,
+        task: Task,
+        progress_callback: Callable[[int, int], Awaitable[None]],
+    ) -> None:
+        if not task.src_dir or not task.dst_dirs or len(task.dst_dirs) == 0:
+            raise BadRequestError(
+                "Source and destination directories are required for RESTORE task"
+                + f"'{task.task_id}'."
+            )
+        driver = self.storage_service.get_driver(task.dst_dirs[0])
+        src_paths = [os.path.join(task.src_dir, name) for name in task.file_names]
+        dst_paths = [
+            os.path.join(dst_dir, name)
+            for name, dst_dir in zip(task.file_names, task.dst_dirs, strict=True)
+        ]
+        await driver.restore(src_paths, dst_paths, progress_callback)
