@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from enum import Enum
 
+from lilycloudproto.domain.values.files.file import Type
+
 
 class SortBy(str, Enum):
     NAME = "name"
@@ -22,7 +24,7 @@ class SortOrder(str, Enum):
 class ListArgs:
     keyword: str | None = None
     user_id: int | None = None
-    type: str | None = None
+    type: Type | None = None
     mime_type: str | None = None
     sort_by: SortBy = SortBy.NAME
     sort_order: SortOrder = SortOrder.DESC
