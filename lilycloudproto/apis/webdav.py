@@ -147,7 +147,7 @@ async def webdav_put(
     storage = get_storage_service(request)
     driver = storage.get_driver(path)
     try:
-        await driver.write_stream(path, request.stream())
+        await driver.write(path, request.stream())
         return Response(status_code=201)
     except Exception as error:
         return Response(status_code=500, content=str(error))

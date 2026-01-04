@@ -207,11 +207,18 @@ class LocalDriver(Driver):
             await asyncio.sleep(0)
 
     @override
-    async def write(self, path: str, content: bytes) -> None:
+    async def write(self, path: str, content_stream: AsyncGenerator[bytes]) -> None:
         physical_path = self._get_physical_path(path)
+
         os.makedirs(os.path.dirname(physical_path), exist_ok=True)
-        async with aiofiles.open(physical_path, "wb") as f:
-            _ = await f.write(content)
+        try:
+            async with aiofiles.open(physical_path, "wb") as f:
+                async for chunk in content_stream:
+                    _ = await f.write(chunk)
+        except Exception as error:
+            raise InternalServerError(
+                f"Failed to write stream to '{path}': {error}"
+            ) from error
 
     @override
     async def read(
@@ -247,22 +254,6 @@ class LocalDriver(Driver):
             _ = shutil.move(phys_src_path, phys_dst_path)
         except Exception as error:
             raise InternalServerError(f"Failed to rename: {error}") from error
-
-    @override
-    async def write_stream(
-        self, path: str, content_stream: AsyncGenerator[bytes]
-    ) -> None:
-        physical_path = self._get_physical_path(path)
-
-        os.makedirs(os.path.dirname(physical_path), exist_ok=True)
-        try:
-            async with aiofiles.open(physical_path, "wb") as f:
-                async for chunk in content_stream:
-                    _ = await f.write(chunk)
-        except Exception as error:
-            raise InternalServerError(
-                f"Failed to write stream to '{path}': {error}"
-            ) from error
 
     def _validate_directory(self, dir: str) -> None:
         dir = os.path.normpath(dir)

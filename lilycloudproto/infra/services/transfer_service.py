@@ -64,7 +64,9 @@ class TransferService:
             total = len(files)
             for i, (content, name) in enumerate(zip(files, filenames, strict=True)):
                 file_virtual_path = os.path.join(dst_dir, name)
-                await self.driver.write(file_virtual_path, content)
+                await self.driver.write(
+                    file_virtual_path, self._bytes_to_stream(content)
+                )
 
                 task.progress = ((i + 1) / total) * 100
                 task.updated_at = datetime.now()
@@ -182,3 +184,16 @@ class TransferService:
             # Clean up the temporary file
             if os.path.exists(temp_path):
                 os.remove(temp_path)
+
+    async def _bytes_to_stream(
+        self, content: bytes, chunk_size: int = 64 * 1024
+    ) -> AsyncGenerator[bytes]:
+        """
+        Helper: wrap an in-memory bytes into an async generator yielding chunks.
+
+        Note: this still requires the bytes to be in memory. Prefer to accept
+        an async generator from the caller to avoid memory pressure for large uploads.
+        """
+        for i in range(0, len(content), chunk_size):
+            yield content[i : i + chunk_size]
+            await asyncio.sleep(0)
