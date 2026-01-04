@@ -30,6 +30,26 @@ class TrashRepository:
         result = await self.db.execute(select(Trash).where(Trash.trash_id == trash_id))
         return result.scalar_one_or_none()
 
+    async def get_by_entry_name(self, entry_name: str, user_id: int) -> Trash | None:
+        """Retrieve a trash entry by unique entry_name."""
+        result = await self.db.execute(
+            select(Trash).where(
+                Trash.entry_name == entry_name, Trash.user_id == user_id
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def get_by_entry_names(
+        self, entry_names: list[str], user_id: int
+    ) -> list[Trash]:
+        """Retrieve a trash entry by unique entry_names."""
+        result = await self.db.execute(
+            select(Trash).where(
+                Trash.entry_name.in_(entry_names), Trash.user_id == user_id
+            )
+        )
+        return list(result.scalars().all())
+
     async def search(self, args: ListArgs) -> list[Trash]:
         statement = select(Trash)
 
