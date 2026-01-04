@@ -2,9 +2,12 @@ from fastapi import APIRouter, Body, Depends, Path
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from lilycloudproto.database import get_db
+from lilycloudproto.dependencies import get_task_service
+from lilycloudproto.domain.values.task import TaskType
 from lilycloudproto.domain.values.trash import ListArgs
 from lilycloudproto.error import NotFoundError
 from lilycloudproto.infra.repositories.trash_repository import TrashRepository
+from lilycloudproto.infra.services.task_service import TaskService
 from lilycloudproto.models.files.trash import (
     DeleteCommand,
     RestoreCommand,
@@ -21,10 +24,16 @@ router = APIRouter(prefix="/api/files/trash", tags=["Files/Trash"])
 @router.post("", response_model=TaskResponse)
 async def trash(
     command: TrashCommand,
-    # user: User = Depends(get_current_user)
+    task_service: TaskService = Depends(get_task_service),
 ) -> TaskResponse:
-    # TODO: Implement logic to create trash task and return TaskResponse
-    raise NotImplementedError
+    task = await task_service.add_task(
+        user_id=0,
+        type=TaskType.TRASH,
+        src_dir=command.dir,
+        dst_dirs=[],
+        file_names=command.file_names,
+    )
+    return TaskResponse.model_validate(task)
 
 
 @router.get("/{trash_id}", response_model=TrashResponse)
