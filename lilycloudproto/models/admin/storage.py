@@ -3,7 +3,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from lilycloudproto.domain.values.storage import (
+from lilycloudproto.domain.values.admin.storage import (
     SortBy,
     SortOrder,
     StorageConfig,

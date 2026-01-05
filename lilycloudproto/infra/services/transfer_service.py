@@ -10,10 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from lilycloudproto.domain.driver import Driver
 from lilycloudproto.domain.entities.task import Task
-from lilycloudproto.domain.values.task import TaskStatus, TaskType
+from lilycloudproto.domain.values.admin.task import TaskStatus, TaskType
 from lilycloudproto.infra.services.storage_service import StorageService
+from lilycloudproto.models.admin.task import TaskResponse
 from lilycloudproto.models.files.transfer import DownloadResource
-from lilycloudproto.models.task import TaskResponse
 
 
 class TransferService:

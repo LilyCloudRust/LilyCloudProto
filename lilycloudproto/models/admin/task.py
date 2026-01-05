@@ -3,7 +3,12 @@ from typing import ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from lilycloudproto.domain.values.task import SortBy, SortOrder, TaskStatus, TaskType
+from lilycloudproto.domain.values.admin.task import (
+    SortBy,
+    SortOrder,
+    TaskStatus,
+    TaskType,
+)
 
 
 class TaskCreate(BaseModel):

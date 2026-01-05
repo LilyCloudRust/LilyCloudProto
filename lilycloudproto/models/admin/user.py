@@ -3,7 +3,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from lilycloudproto.domain.values.user import Role, SortBy, SortOrder
+from lilycloudproto.domain.values.admin.user import Role, SortBy, SortOrder
 
 
 class UserCreate(BaseModel):

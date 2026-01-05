@@ -16,8 +16,8 @@ from lilycloudproto.dependencies import get_storage_service
 from lilycloudproto.infra.database import get_db
 from lilycloudproto.infra.services.storage_service import StorageService
 from lilycloudproto.infra.services.transfer_service import TransferService
+from lilycloudproto.models.admin.task import TaskResponse
 from lilycloudproto.models.files.transfer import BatchDownloadRequest
-from lilycloudproto.models.task import TaskResponse
 
 router = APIRouter(prefix="/api/files", tags=["Files"])
 

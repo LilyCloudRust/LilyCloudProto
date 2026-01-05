@@ -2,18 +2,18 @@ from fastapi import APIRouter, Depends, Query
 
 from lilycloudproto.dependencies import get_storage_service, get_task_service
 from lilycloudproto.domain.entities.task import Task
+from lilycloudproto.domain.values.admin.task import TaskType
 from lilycloudproto.domain.values.files.file import File
 from lilycloudproto.domain.values.files.list import ListArgs
 from lilycloudproto.domain.values.files.search import (
     SearchArgs,
 )
-from lilycloudproto.domain.values.task import TaskType
 from lilycloudproto.infra.services.storage_service import StorageService
 from lilycloudproto.infra.services.task_service import TaskService
+from lilycloudproto.models.admin.task import TaskResponse
 from lilycloudproto.models.files.command import CopyCommand, DeleteCommand, MoveCommand
 from lilycloudproto.models.files.list import ListQuery, ListResponse
 from lilycloudproto.models.files.search import SearchQuery, SearchResponse
-from lilycloudproto.models.task import TaskResponse
 
 router = APIRouter(prefix="/api/files", tags=["Files"])
 

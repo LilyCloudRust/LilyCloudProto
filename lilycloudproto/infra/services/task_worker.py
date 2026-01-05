@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from lilycloudproto.domain.driver import Base
 from lilycloudproto.domain.entities.task import Task
 from lilycloudproto.domain.entities.trash import Trash
-from lilycloudproto.domain.values.task import TaskStatus, TaskType
+from lilycloudproto.domain.values.admin.task import TaskStatus, TaskType
 from lilycloudproto.error import BadRequestError, NotFoundError
 from lilycloudproto.infra.repositories.task_repository import TaskRepository
 from lilycloudproto.infra.repositories.trash_repository import TrashRepository

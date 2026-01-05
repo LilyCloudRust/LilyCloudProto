@@ -4,12 +4,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from lilycloudproto.dependencies import get_auth_service
 from lilycloudproto.domain.entities.user import User
-from lilycloudproto.domain.values.user import ListArgs
+from lilycloudproto.domain.values.admin.user import ListArgs
 from lilycloudproto.error import ConflictError, NotFoundError
 from lilycloudproto.infra.database import get_db
 from lilycloudproto.infra.repositories.user_repository import UserRepository
 from lilycloudproto.infra.services.auth_service import AuthService
-from lilycloudproto.models.user import (
+from lilycloudproto.models.admin.user import (
     MessageResponse,
     UserCreate,
     UserListQuery,

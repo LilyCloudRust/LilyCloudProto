@@ -4,7 +4,7 @@ from sqlalchemy import JSON, DateTime, Enum, Float, ForeignKey, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
-from lilycloudproto.domain.values.task import TaskStatus, TaskType
+from lilycloudproto.domain.values.admin.task import TaskStatus, TaskType
 from lilycloudproto.infra.database import Base
 
 

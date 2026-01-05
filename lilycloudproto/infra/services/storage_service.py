@@ -2,7 +2,7 @@ import os
 
 from lilycloudproto.domain.driver import Base, Driver
 from lilycloudproto.domain.entities.storage import Storage
-from lilycloudproto.domain.values.storage import LocalConfig, StorageType
+from lilycloudproto.domain.values.admin.storage import LocalConfig, StorageType
 from lilycloudproto.infra.drivers.local_driver import LocalDriver
 from lilycloudproto.infra.repositories.storage_repository import StorageRepository
 

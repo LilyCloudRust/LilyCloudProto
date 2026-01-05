@@ -4,7 +4,7 @@ from sqlalchemy import JSON, Boolean, DateTime, Enum, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
-from lilycloudproto.domain.values.storage import StorageType
+from lilycloudproto.domain.values.admin.storage import StorageType
 from lilycloudproto.infra.database import Base
 
 

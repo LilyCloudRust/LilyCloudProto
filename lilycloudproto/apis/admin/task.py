@@ -6,11 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from lilycloudproto.dependencies import get_current_user
 from lilycloudproto.domain.entities.task import Task
 from lilycloudproto.domain.entities.user import User
-from lilycloudproto.domain.values.task import ListArgs
+from lilycloudproto.domain.values.admin.task import ListArgs
 from lilycloudproto.error import NotFoundError
 from lilycloudproto.infra.database import get_db
 from lilycloudproto.infra.repositories.task_repository import TaskRepository
-from lilycloudproto.models.task import (
+from lilycloudproto.models.admin.task import (
     MessageResponse,
     TaskCreate,
     TaskListQuery,

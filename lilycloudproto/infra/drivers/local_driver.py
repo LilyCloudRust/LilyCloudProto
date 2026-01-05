@@ -11,11 +11,11 @@ import magic
 
 from lilycloudproto.domain.driver import Base, Driver
 from lilycloudproto.domain.entities.storage import Storage
+from lilycloudproto.domain.values.admin.storage import LocalConfig, StorageType
 from lilycloudproto.domain.values.files.file import File, Type
 from lilycloudproto.domain.values.files.list import ListArgs
 from lilycloudproto.domain.values.files.search import SearchArgs
 from lilycloudproto.domain.values.files.sort import SortArgs
-from lilycloudproto.domain.values.storage import LocalConfig, StorageType
 from lilycloudproto.error import (
     BadRequestError,
     ConflictError,
