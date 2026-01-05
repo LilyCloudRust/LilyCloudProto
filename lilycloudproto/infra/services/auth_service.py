@@ -119,6 +119,17 @@ class AuthService:
         access_token = self._encode_token(payload)
         return access_token
 
+    async def delete(self, token: str) -> None:
+        try:
+            payload = self._decode_token(token)
+        except Exception:
+            return
+
+        # Delete the token from database.
+        token_entity = await self.token_repo.get_by_id(payload.token_id)
+        if token_entity:
+            await self.token_repo.delete(token_entity)
+
     async def get_user_from_token(self, token: str) -> User:
         payload = self._decode_token(token)
 

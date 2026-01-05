@@ -59,7 +59,7 @@ async def login(
         secure=True,
         httponly=True,
         samesite="lax",
-        path="/api/auth/refresh",  # Only send for refresh endpoint.
+        path="/api/auth",  # Only send for refresh endpoint.
         max_age=auth_settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
     )
 
@@ -95,8 +95,9 @@ async def refresh(
 
 @router.post("/logout", response_model=LogoutResponse)
 async def logout(
+    request: Request,
     response: Response,
-    _current_user: User = Depends(get_current_user),
+    auth_service: AuthService = Depends(get_auth_service),
 ) -> LogoutResponse:
     # Remove the access token cookie.
     response.delete_cookie(
@@ -108,6 +109,15 @@ async def logout(
         key="refresh_token",
         path="/api/auth/refresh",
     )
+
+    # Delete the tokens from database.
+    refresh_token = request.cookies.get("refresh_token")
+    if refresh_token:
+        await auth_service.delete(refresh_token)
+    access_token = request.cookies.get("access_token")
+    if access_token:
+        await auth_service.delete(access_token)
+
     return LogoutResponse(message="Logout successful")
 
 
