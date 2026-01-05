@@ -204,21 +204,28 @@ class TaskWorker:
             )
 
         src_paths = [os.path.join(task.src_dir, name) for name in task.file_names]
-        dst_dir = task.dst_dirs[0]
 
         if len(task.dst_dirs) == 1:
             # Use the single destination for all files.
+            dst_dir = task.dst_dirs[0]
             dst_paths = [os.path.join(dst_dir, name) for name in task.file_names]
             driver = self.storage_service.get_driver(dst_dir)
             await driver.restore(src_paths, dst_paths, progress_callback)
         elif len(task.dst_dirs) == len(task.file_names):
             # Use each destination for each file, possibly different drivers.
-            driver = self.storage_service.get_driver(dst_dir)
-            dst_paths = [
-                os.path.join(dst_dir, name)
-                for name, dst_dir in zip(task.file_names, task.dst_dirs, strict=True)
-            ]
-            await driver.restore(src_paths, dst_paths, progress_callback)
+            total = len(task.file_names)
+            for index, (name, dst_dir) in enumerate(
+                zip(task.file_names, task.dst_dirs, strict=True)
+            ):
+                src_path = os.path.join(task.src_dir, name)
+                dst_path = os.path.join(dst_dir, name)
+                driver = self.storage_service.get_driver(dst_dir)
+                # Provide progress for each file.
+                await driver.restore(
+                    [src_path],
+                    [dst_path],
+                )
+                await progress_callback(index + 1, total)
         else:
             raise BadRequestError(
                 "dst_dirs must be length 1 or match file_names for RESTORE task"

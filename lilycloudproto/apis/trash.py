@@ -103,7 +103,7 @@ async def restore(
         file_names = command.file_names
         trash_entries = [trash_entry]
 
-    # Create restore task for the worker
+    # Create restore task for the worker.
     task = await task_service.add_task(
         user_id=0,
         type=TaskType.RESTORE,
