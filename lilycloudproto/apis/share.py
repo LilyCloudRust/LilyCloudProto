@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from lilycloudproto.dependencies import get_auth_service, get_current_user
 from lilycloudproto.domain.entities.share import Share
 from lilycloudproto.domain.entities.user import User
+from lilycloudproto.domain.values.admin.user import Role
 from lilycloudproto.domain.values.share import ListArgs
 from lilycloudproto.error import ConflictError, NotFoundError
 from lilycloudproto.infra.database import get_db
@@ -89,7 +90,7 @@ async def list_shares(
     """List share links with pagination and filtering."""
     repo = ShareRepository(db)
 
-    if query.user_id != current_user.user_id:
+    if current_user.role != Role.ADMIN and query.user_id != current_user.user_id:
         raise NotFoundError("Share links not found.")
 
     list_args = ListArgs(
@@ -171,16 +172,16 @@ async def delete_share(
     return MessageResponse(message="Share link deleted successfully.")
 
 
-@router.get("/{token}", response_model=ShareInfoResponse)
+@router.get("/public/{share_token}", response_model=ShareInfoResponse)
 async def get_share_info(
-    token: str,
+    share_token: str,
     db: AsyncSession = Depends(get_db),
 ) -> ShareInfoResponse:
     """
     Get Link Info via Token (public endpoint).
     """
     repo = ShareRepository(db)
-    share = await repo.get_by_token(token)
+    share = await repo.get_by_token(share_token)
     if not share:
         raise NotFoundError("Share link not found.")
 

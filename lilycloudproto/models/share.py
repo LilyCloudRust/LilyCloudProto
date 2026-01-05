@@ -37,9 +37,18 @@ class ShareResponse(BaseModel):
 
     @classmethod
     def from_entity(cls, entity: Share) -> "ShareResponse":
-        object = cls.model_validate(entity, from_attributes=True)
-        object.requires_password = entity.hashed_password is not None
-        return object
+        return cls(
+            share_id=entity.share_id,
+            user_id=entity.user_id,
+            token=entity.token,
+            base_dir=entity.base_dir,
+            file_names=entity.file_names,
+            permission=entity.permission,
+            requires_password=entity.hashed_password is not None,
+            expired_at=entity.expires_at,  # Note: use the correct field name
+            created_at=entity.created_at,
+            updated_at=entity.updated_at,
+        )
 
     model_config: ClassVar[ConfigDict] = {"from_attributes": True}
 
