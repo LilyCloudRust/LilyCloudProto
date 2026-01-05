@@ -16,19 +16,19 @@ from lilycloudproto.models.auth import (
     LogoutResponse,
     RefreshResponse,
     RegisterRequest,
+    UserAuthResponse,
 )
-from lilycloudproto.models.user import UserResponse
 
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
 
 
-@router.post("/register", response_model=UserResponse)
+@router.post("/register", response_model=UserAuthResponse)
 async def register(
     payload: RegisterRequest,
     service: AuthService = Depends(get_auth_service),
-) -> UserResponse:
+) -> UserAuthResponse:
     user = await service.register_user(payload.username, payload.password)
-    return UserResponse.model_validate(user)
+    return UserAuthResponse.model_validate(user)
 
 
 @router.post("/login", response_model=LoginResponse)
@@ -111,8 +111,8 @@ async def logout(
     return LogoutResponse(message="Logout successful")
 
 
-@router.get("/whoami", response_model=UserResponse)
+@router.get("/whoami", response_model=UserAuthResponse)
 async def whoami(
     current_user: User = Depends(get_current_user),
-) -> UserResponse:
-    return UserResponse.model_validate(current_user)
+) -> UserAuthResponse:
+    return UserAuthResponse.model_validate(current_user)

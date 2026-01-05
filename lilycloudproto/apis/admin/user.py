@@ -32,6 +32,7 @@ async def create_user(
     user = User(
         username=data.username,
         hashed_password=auth_service.password_hash.hash(data.password),
+        role=data.role,
     )
     # Check for duplicate username.
     try:
@@ -63,6 +64,7 @@ async def list_users(
     repo = UserRepository(db)
     args = ListArgs(
         keyword=query.keyword,
+        role=query.role,
         sort_by=query.sort_by,
         sort_order=query.sort_order,
         page=query.page,
@@ -96,6 +98,8 @@ async def update_user(
         user.username = data.username
     if data.password is not None:
         user.hashed_password = auth_service.password_hash.hash(data.password)
+    if data.role is not None:
+        user.role = data.role
     # Check for duplicate username.
     try:
         updated = await repo.update(user)

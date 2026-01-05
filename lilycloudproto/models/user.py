@@ -3,22 +3,25 @@ from typing import ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from lilycloudproto.domain.values.user import SortBy, SortOrder
+from lilycloudproto.domain.values.user import Role, SortBy, SortOrder
 
 
 class UserCreate(BaseModel):
     username: str
     password: str
+    role: Role = Role.USER
 
 
 class UserUpdate(BaseModel):
     username: str | None = None
     password: str | None = None
+    role: Role | None = None
 
 
 class UserResponse(BaseModel):
     user_id: int
     username: str
+    role: Role
     created_at: datetime
     updated_at: datetime
 
@@ -34,6 +37,7 @@ class UserListResponse(BaseModel):
 
 class UserListQuery(BaseModel):
     keyword: str | None = Field(None)
+    role: Role | None = Field(None)
     sort_by: SortBy = Field(SortBy.CREATED_AT)
     sort_order: SortOrder = Field(SortOrder.DESC)
     page: int = Field(1, ge=1)

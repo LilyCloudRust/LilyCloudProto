@@ -42,9 +42,12 @@ class UserRepository:
 
         if args.keyword:
             statement = statement.where(User.username.contains(args.keyword))
+        if args.role:
+            statement = statement.where(User.role == args.role)
 
         field_map = {
             SortBy.USERNAME: User.username,
+            SortBy.ROLE: User.role,
             SortBy.CREATED_AT: User.created_at,
             SortBy.UPDATED_AT: User.updated_at,
         }
@@ -67,6 +70,8 @@ class UserRepository:
 
         if args.keyword:
             statement = statement.where(User.username.contains(args.keyword))
+        if args.role:
+            statement = statement.where(User.role == args.role)
 
         result = await self.db.execute(statement)
         return result.scalar_one() or 0

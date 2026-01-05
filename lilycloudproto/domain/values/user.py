@@ -9,6 +9,7 @@ class Role(str, Enum):
 
 class SortBy(str, Enum):
     USERNAME = "username"
+    ROLE = "role"
     CREATED_AT = "created"
     UPDATED_AT = "updated"
 
@@ -21,6 +22,7 @@ class SortOrder(str, Enum):
 @dataclass
 class ListArgs:
     keyword: str | None = None
+    role: Role | None = None
     sort_by: SortBy = SortBy.CREATED_AT
     sort_order: SortOrder = SortOrder.DESC
     page: int = 1
