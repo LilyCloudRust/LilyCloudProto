@@ -5,6 +5,7 @@ from pwdlib import PasswordHash
 from pwdlib.hashers.argon2 import Argon2Hasher
 from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from lilycloudproto.config import AuthSettings
 from lilycloudproto.domain.entities.token import Token
@@ -22,20 +23,16 @@ class Payload(BaseModel):
 
 
 class AuthService:
-    user_repo: UserRepository
-    token_repo: TokenRepository
     password_hash: PasswordHash
     settings: AuthSettings
+    db: AsyncSession
     _dummy_hash: str | None = None
 
     def __init__(
         self,
-        user_repo: UserRepository,
-        token_repo: TokenRepository,
         settings: AuthSettings,
+        db: AsyncSession,
     ):
-        self.user_repo = user_repo
-        self.token_repo = token_repo
         self.settings = settings
         self.password_hash = PasswordHash(
             (
@@ -46,12 +43,14 @@ class AuthService:
                 ),
             )
         )
+        self.db = db
         self._dummy_hash = self.password_hash.hash(
             "dummy_password_for_timing_protection"
         )
 
     async def authenticate(self, username: str, password: str) -> tuple[str, str]:
-        user = await self.user_repo.get_by_username(username)
+        user_repo = UserRepository(self.db)
+        user = await user_repo.get_by_username(username)
         hash_to_verify = user.hashed_password if user else str(self._dummy_hash)
         is_password_correct = self.password_hash.verify(password, hash_to_verify)
         if user is None or not is_password_correct:
@@ -59,7 +58,8 @@ class AuthService:
         return await self._generate_tokens(user)
 
     async def authenticate_basic(self, username: str, password: str) -> User | None:
-        user = await self.user_repo.get_by_username(username)
+        user_repo = UserRepository(self.db)
+        user = await user_repo.get_by_username(username)
         hash_to_verify = user.hashed_password if user else str(self._dummy_hash)
         is_password_correct = self.password_hash.verify(password, hash_to_verify)
         if user is None or not is_password_correct:
@@ -70,7 +70,8 @@ class AuthService:
         hashed_password = self.password_hash.hash(password)
         user = User(username=username, hashed_password=hashed_password)
         try:
-            created_user = await self.user_repo.create(user)
+            user_repo = UserRepository(self.db)
+            created_user = await user_repo.create(user)
             return created_user
         except IntegrityError as error:
             raise AuthenticationError("Username already registered.") from error
@@ -79,12 +80,14 @@ class AuthService:
         payload = self._decode_token(refresh_token)
 
         # Check if user exists.
-        user = await self.user_repo.get_by_id(payload.user_id)
+        user_repo = UserRepository(self.db)
+        user = await user_repo.get_by_id(payload.user_id)
         if not user:
             raise AuthenticationError("User not found.")
 
         # Get the token from database to validate the refresh token.
-        token_entity = await self.token_repo.get_by_id(payload.token_id)
+        token_repo = TokenRepository(self.db)
+        token_entity = await token_repo.get_by_id(payload.token_id)
 
         # Check if the token exists.
         if not token_entity:
@@ -108,7 +111,7 @@ class AuthService:
         access_token_entity = Token(
             type=TokenType.ACCESS, user_id=user.user_id, expires_at=expires_at
         )
-        access_token_entity = await self.token_repo.create(access_token_entity)
+        access_token_entity = await token_repo.create(access_token_entity)
 
         # Create new access token.
         payload = Payload(
@@ -126,20 +129,23 @@ class AuthService:
             return
 
         # Delete the token from database.
-        token_entity = await self.token_repo.get_by_id(payload.token_id)
+        token_repo = TokenRepository(self.db)
+        token_entity = await token_repo.get_by_id(payload.token_id)
         if token_entity:
-            await self.token_repo.delete(token_entity)
+            await token_repo.delete(token_entity)
 
     async def get_user_from_token(self, token: str) -> User:
         payload = self._decode_token(token)
 
         # Check if user exists.
-        user = await self.user_repo.get_by_id(payload.user_id)
+        user_repo = UserRepository(self.db)
+        user = await user_repo.get_by_id(payload.user_id)
         if not user:
             raise AuthenticationError("User not found.")
 
         # Get the token from database to validate the access token.
-        token_entity = await self.token_repo.get_by_id(payload.token_id)
+        token_repo = TokenRepository(self.db)
+        token_entity = await token_repo.get_by_id(payload.token_id)
 
         # Check if the token exists.
         if not token_entity:
@@ -177,6 +183,8 @@ class AuthService:
             raise AuthenticationError("Could not validate credentials.") from error
 
     async def _generate_tokens(self, user: User) -> tuple[str, str]:
+        token_repo = TokenRepository(self.db)
+
         # Create access token.
         access_token_expires = datetime.now(UTC) + timedelta(
             minutes=self.settings.ACCESS_TOKEN_EXPIRE_MINUTES
@@ -184,7 +192,7 @@ class AuthService:
         access_token_entity = Token(
             type=TokenType.ACCESS, user_id=user.user_id, expires_at=access_token_expires
         )
-        access_token_entity = await self.token_repo.create(access_token_entity)
+        access_token_entity = await token_repo.create(access_token_entity)
 
         # Create refresh token.
         refresh_token_expires = datetime.now(UTC) + timedelta(
@@ -195,7 +203,7 @@ class AuthService:
             user_id=user.user_id,
             expires_at=refresh_token_expires,
         )
-        refresh_token_entity = await self.token_repo.create(refresh_token_entity)
+        refresh_token_entity = await token_repo.create(refresh_token_entity)
 
         # Create payloads.
         access_token_payload = Payload(
