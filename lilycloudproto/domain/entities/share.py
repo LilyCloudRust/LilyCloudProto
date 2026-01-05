@@ -19,7 +19,7 @@ class Share(Base):
     file_names: Mapped[list[str]] = mapped_column(JSON, nullable=False)
     permission: Mapped[Permission] = mapped_column(String, nullable=False)
     hashed_password: Mapped[str | None] = mapped_column(String, nullable=True)
-    expired_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

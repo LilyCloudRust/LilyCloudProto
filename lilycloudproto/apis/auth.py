@@ -27,7 +27,7 @@ async def register(
     payload: RegisterRequest,
     service: AuthService = Depends(get_auth_service),
 ) -> UserAuthResponse:
-    user = await service.register_user(payload.username, payload.password)
+    user = await service.register(payload.username, payload.password)
     return UserAuthResponse.model_validate(user)
 
 
@@ -37,7 +37,7 @@ async def login(
     response: Response,
     service: AuthService = Depends(get_auth_service),
 ) -> LoginResponse:
-    access_token, refresh_token = await service.authenticate_user(
+    access_token, refresh_token = await service.authenticate(
         payload.username, payload.password
     )
 
@@ -67,7 +67,7 @@ async def login(
 
 
 @router.post("/refresh", response_model=RefreshResponse)
-async def refresh_token(
+async def refresh(
     token: Annotated[str, Depends(oauth2_scheme)],
     request: Request,
     response: Response,
@@ -78,7 +78,7 @@ async def refresh_token(
     # Fallback to Authorization header if not in cookie.
     if not refresh_token:
         refresh_token = token
-    refreshed_token = await service.refresh_access_token(refresh_token)
+    refreshed_token = await service.refresh(refresh_token)
 
     response.set_cookie(
         key="access_token",

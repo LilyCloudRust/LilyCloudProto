@@ -18,7 +18,9 @@ class Token(Base):
     share_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("shares.share_id", ondelete="CASCADE"), nullable=True
     )
-    expired_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

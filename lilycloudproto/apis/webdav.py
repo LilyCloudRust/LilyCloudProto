@@ -27,7 +27,7 @@ async def get_current_user(
     credentials: Annotated[HTTPBasicCredentials, Depends(security)],
     auth_service: AuthService = Depends(get_auth_service),
 ) -> User:
-    user = await auth_service.authenticate_user_basic(
+    user = await auth_service.authenticate_basic(
         credentials.username, credentials.password
     )
     if not user:

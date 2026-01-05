@@ -12,7 +12,7 @@ class Permission(str, Enum):
 class SortBy(str, Enum):
     BASE_DIR = "base_dir"
     PERMISSION = "permission"
-    EXPIRED_AT = "expired_at"
+    EXPIRES_AT = "expires_at"
     CREATED_AT = "created_at"
     UPDATED_AT = "updated_at"
 
