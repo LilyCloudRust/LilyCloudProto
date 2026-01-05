@@ -25,10 +25,14 @@ router = APIRouter(prefix="/api/admin/users", tags=["Admin/Users"])
 async def create_user(
     data: UserCreate,
     db: AsyncSession = Depends(get_db),
+    auth_service: AuthService = Depends(get_auth_service),
 ) -> UserResponse:
     """Create a new user."""
     repo = UserRepository(db)
-    user = User(username=data.username, hashed_password=data.password)
+    user = User(
+        username=data.username,
+        hashed_password=auth_service.password_hash.hash(data.password),
+    )
     # Check for duplicate username.
     try:
         created = await repo.create(user)

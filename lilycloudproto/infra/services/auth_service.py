@@ -45,7 +45,7 @@ class AuthService:
         hash_to_verify = user.hashed_password if user else str(self._dummy_hash)
         is_password_correct = self.password_hash.verify(password, hash_to_verify)
         if user is None or not is_password_correct:
-            raise AuthenticationError("Incorrect username or password") from None
+            raise AuthenticationError("Incorrect username or password.")
         return self._generate_tokens(user)
 
     async def authenticate_user_basic(
@@ -65,14 +65,14 @@ class AuthService:
             created_user = await self.user_repo.create(user)
             return created_user
         except IntegrityError as error:
-            raise AuthenticationError("Username already registered") from error
+            raise AuthenticationError("Username already registered.") from error
 
     async def refresh_access_token(self, refresh_token: str) -> str:
         payload = self._decode_token(refresh_token)
         user_id = payload.sub
         user = await self.user_repo.get_by_id(int(user_id))
         if not user:
-            raise AuthenticationError("User not found") from None
+            raise AuthenticationError("User not found.")
 
         expires = datetime.now(UTC) + timedelta(
             minutes=self.settings.ACCESS_TOKEN_EXPIRE_MINUTES
@@ -85,7 +85,7 @@ class AuthService:
         user_id = payload.sub
         user = await self.user_repo.get_by_id(int(user_id))
         if user is None:
-            raise AuthenticationError("User not found") from None
+            raise AuthenticationError("User not found.")
         return user
 
     def _create_token(self, payload: Payload) -> str:

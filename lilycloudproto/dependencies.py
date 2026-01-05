@@ -8,6 +8,8 @@ from lilycloudproto.infra.services.auth_service import AuthService
 from lilycloudproto.infra.services.storage_service import StorageService
 from lilycloudproto.infra.services.task_service import TaskService
 
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
+
 
 def get_auth_service(request: Request) -> AuthService:
     service = getattr(
@@ -16,7 +18,7 @@ def get_auth_service(request: Request) -> AuthService:
         None,
     )
     if not isinstance(service, AuthService):
-        raise RuntimeError("AuthService is not initialized on app.state")
+        raise RuntimeError("AuthService is not initialized on app.state.")
     return service
 
 
@@ -27,7 +29,7 @@ def get_storage_service(request: Request) -> StorageService:
         None,
     )
     if not isinstance(service, StorageService):
-        raise RuntimeError("StorageService is not initialized on app.state")
+        raise RuntimeError("StorageService is not initialized on app.state.")
     return service
 
 
@@ -38,16 +40,18 @@ def get_task_service(request: Request) -> TaskService:
         None,
     )
     if not isinstance(service, TaskService):
-        raise RuntimeError("TaskService is not initialized on app.state")
+        raise RuntimeError("TaskService is not initialized on app.state.")
     return service
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
-
-
 async def get_current_user(
+    request: Request,
     token: Annotated[str, Depends(oauth2_scheme)],
     service: Annotated[AuthService, Depends(get_auth_service)],
 ) -> User:
-    """Dependency to validate Token and get current User."""
-    return await service.get_user_from_token(token)
+    # Try to get token from cookie first.
+    access_token = request.cookies.get("access_token")
+    # Fallback to Authorization header if not in cookie.
+    if not access_token:
+        access_token = token
+    return await service.get_user_from_token(access_token)
