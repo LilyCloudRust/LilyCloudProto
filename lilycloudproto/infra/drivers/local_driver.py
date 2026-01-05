@@ -347,7 +347,9 @@ class LocalDriver(Driver):
             root = self.trash_path
         elif self.base == Base.SHARE:
             # Update when share functionality is implemented.
-            root = self.root_path
+            if self.share_path is None:
+                raise ValueError("share_path must be provided when base is SHARE.")
+            root = os.path.join(self.root_path, self.share_path)
         else:
             raise ValueError(f"Unknown base: {self.base}")
         physical_path = os.path.join(root, logical_path)

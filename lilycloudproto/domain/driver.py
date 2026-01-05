@@ -17,10 +17,16 @@ class Base(str, Enum):
 class Driver(ABC):
     storage: Storage
     base: Base
+    share_path: str | None
 
-    def __init__(self, storage: Storage, base: Base = Base.REGULAR):
+    def __init__(
+        self, storage: Storage, base: Base = Base.REGULAR, share_path: str | None = None
+    ):
         self.storage = storage
         self.base = base
+        if base == Base.SHARE and share_path is None:
+            raise ValueError("share_path must be provided when base is SHARE.")
+        self.share_path = share_path
 
     @abstractmethod
     def list_dir(self, args: ListArgs) -> list[File]:
