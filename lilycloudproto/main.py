@@ -13,6 +13,7 @@ from lilycloudproto.apis.admin.task import router as admin_task_router
 from lilycloudproto.apis.admin.user import router as admin_user_router
 from lilycloudproto.apis.auth import router as auth_router
 from lilycloudproto.apis.files import router as files_router
+from lilycloudproto.apis.share import router as share_router
 from lilycloudproto.apis.transfer import router as files_transfer
 from lilycloudproto.apis.trash import router as trash_router
 from lilycloudproto.apis.webdav import router as webdav_router
@@ -71,11 +72,12 @@ app = FastAPI(title="Lily Cloud Prototype API", lifespan=lifespan)
 register_error_handlers(app)
 
 # Include routers.
-app.include_router(admin_user_router)
 app.include_router(admin_storage_router)
 app.include_router(admin_task_router)
-app.include_router(files_router)
+app.include_router(admin_user_router)
 app.include_router(auth_router)
+app.include_router(files_router)
+app.include_router(share_router)
 app.include_router(files_transfer)
 app.include_router(trash_router)
 app.include_router(webdav_router)

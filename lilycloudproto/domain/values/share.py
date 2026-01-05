@@ -27,6 +27,7 @@ class ListArgs:
     keyword: str | None = None
     user_id: int | None = None
     permission: Permission | None = None
+    requires_password: bool | None = None
     active_first: bool = True
     sort_by: SortBy = SortBy.CREATED_AT
     sort_order: SortOrder = SortOrder.DESC
