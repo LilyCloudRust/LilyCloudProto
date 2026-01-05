@@ -2,11 +2,11 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from lilycloudproto.database import get_db
 from lilycloudproto.dependencies import get_auth_service
 from lilycloudproto.domain.entities.user import User
 from lilycloudproto.domain.values.user import ListArgs
 from lilycloudproto.error import ConflictError, NotFoundError
+from lilycloudproto.infra.database import get_db
 from lilycloudproto.infra.repositories.user_repository import UserRepository
 from lilycloudproto.infra.services.auth_service import AuthService
 from lilycloudproto.models.user import (

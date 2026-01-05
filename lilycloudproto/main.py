@@ -17,11 +17,12 @@ from lilycloudproto.apis.transfer import router as files_transfer
 from lilycloudproto.apis.trash import router as trash_router
 from lilycloudproto.apis.webdav import router as webdav_router
 from lilycloudproto.config import AuthSettings
-from lilycloudproto.database import AsyncSessionLocal, init_db
 from lilycloudproto.error import TeapotError, register_error_handlers
+from lilycloudproto.infra.database import AsyncSessionLocal, init_db
 from lilycloudproto.infra.repositories.storage_repository import StorageRepository
 from lilycloudproto.infra.repositories.task_repository import TaskRepository
 from lilycloudproto.infra.repositories.user_repository import UserRepository
+from lilycloudproto.infra.seed import seed_admin
 from lilycloudproto.infra.services.auth_service import AuthService
 from lilycloudproto.infra.services.storage_service import StorageService
 from lilycloudproto.infra.services.task_service import TaskService
@@ -51,6 +52,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
 
         # Start background task worker.
         background_task = asyncio.create_task(task_service.start())
+
+        # Seed the admin user.
+        await seed_admin(auth_service)
+
         try:
             yield
         finally:

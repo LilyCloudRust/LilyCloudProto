@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy import DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from lilycloudproto.database import Base
+from lilycloudproto.infra.database import Base
 
 
 class Trash(Base):

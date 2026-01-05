@@ -4,6 +4,17 @@ from typing import ClassVar
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+class AdminSettings(BaseSettings):
+    ADMIN_USERNAME: str = os.getenv("ADMIN_USERNAME", "root")
+    ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "password")
+    model_config: ClassVar[SettingsConfigDict] = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "extra": "ignore",
+        "frozen": True,
+    }
+
+
 class AuthSettings(BaseSettings):
     SECRET_KEY: str = os.getenv("SECRET_KEY", "secret")
     ALGORITHM: str = "HS256"
@@ -20,4 +31,5 @@ class AuthSettings(BaseSettings):
     }
 
 
+admin_settings = AdminSettings()
 auth_settings = AuthSettings()

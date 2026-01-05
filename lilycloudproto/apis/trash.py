@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Body, Depends, Path
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from lilycloudproto.database import get_db
 from lilycloudproto.dependencies import get_task_service
 from lilycloudproto.domain.values.task import TaskType
 from lilycloudproto.domain.values.trash import ListArgs
 from lilycloudproto.error import NotFoundError
+from lilycloudproto.infra.database import get_db
 from lilycloudproto.infra.repositories.trash_repository import TrashRepository
 from lilycloudproto.infra.services.task_service import TaskService
 from lilycloudproto.models.files.trash import (

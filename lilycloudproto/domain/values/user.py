@@ -2,6 +2,11 @@ from dataclasses import dataclass
 from enum import Enum
 
 
+class Role(str, Enum):
+    ADMIN = "admin"
+    USER = "user"
+
+
 class SortBy(str, Enum):
     USERNAME = "username"
     CREATED_AT = "created"

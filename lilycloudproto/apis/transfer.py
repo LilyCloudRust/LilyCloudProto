@@ -12,8 +12,8 @@ from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from lilycloudproto.database import get_db
 from lilycloudproto.dependencies import get_storage_service
+from lilycloudproto.infra.database import get_db
 from lilycloudproto.infra.services.storage_service import StorageService
 from lilycloudproto.infra.services.transfer_service import TransferService
 from lilycloudproto.models.files.transfer import BatchDownloadRequest
