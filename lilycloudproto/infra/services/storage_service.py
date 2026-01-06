@@ -3,6 +3,7 @@ import os
 from lilycloudproto.domain.driver import Base, Driver
 from lilycloudproto.domain.entities.storage import Storage
 from lilycloudproto.domain.values.admin.storage import LocalConfig, StorageType
+from lilycloudproto.domain.values.files.file import File, Type
 from lilycloudproto.infra.drivers.local_driver import LocalDriver
 from lilycloudproto.infra.repositories.storage_repository import StorageRepository
 
@@ -32,6 +33,47 @@ class StorageService:
         """Remove a storage from the cache when deleted."""
         if mount_path in self._cache:
             del self._cache[mount_path]
+
+    def list_mounted_storages(self, enabled_only: bool = True) -> list[File]:
+        """
+        List all mounted storage as File objects (directories).
+
+        Args:
+            enabled_only: If True, only return enabled storages.
+
+        Returns:
+            List of File objects representing mounted storages as directories.
+        """
+        storages = list(self._cache.values())
+
+        if enabled_only:
+            storages = [s for s in storages if s.enabled]
+
+        # Exclude root mount (/) from the list as it's the container itself
+        storages = [s for s in storages if s.mount_path != "/"]
+
+        # Convert storages to File objects
+        files: list[File] = []
+        for storage in storages:
+            # Extract the name from mount_path (e.g., "/local" -> "local")
+            name = storage.mount_path.strip("/").split("/")[0]
+
+            file = File(
+                name=name,
+                path=storage.mount_path,
+                type=Type.DIRECTORY,
+                size=0,
+                mime_type="inode/directory",
+                created_at=storage.created_at,
+                modified_at=storage.updated_at,
+                accessed_at=storage.updated_at,
+            )
+            files.append(file)
+
+        # Sort by mount_path for consistent ordering
+        files.sort(key=lambda f: f.path)
+
+        return files
 
     def get_driver(self, path: str, base: Base = Base.REGULAR) -> Driver:
         """Get the appropriate driver for the given path using longest prefix match."""
@@ -63,6 +105,10 @@ class StorageService:
     def _match_storage(self, path: str) -> Storage | None:
         """Find the storage with the longest matching prefix."""
         matches: list[Storage] = []
+
+        # Normalize path to always start with "/"
+        if not path.startswith("/"):
+            path = "/" + path
 
         # Ensure path is clean for matching
         clean_path = path.rstrip("/") if path != "/" else path

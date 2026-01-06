@@ -22,6 +22,10 @@ router = APIRouter(prefix="/api/files", tags=["Files"])
 def list_files(
     query: ListQuery = Depends(), service: StorageService = Depends(get_storage_service)
 ) -> ListResponse:
+    if query.path in {"/", "", "."}:
+        files = service.list_mounted_storages(enabled_only=True)
+        return ListResponse(path="/", total=len(files), items=files)
+
     args = ListArgs(
         path=query.path,
         sort_by=query.sort_by,
