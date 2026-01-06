@@ -16,7 +16,7 @@ from lilycloudproto.domain.values.files.sort import SortBy, SortOrder
 from lilycloudproto.error import ConflictError, NotFoundError
 from lilycloudproto.infra.services.auth_service import AuthService
 
-router = APIRouter()
+router = APIRouter(prefix="/webdav", tags=["WebDAV"])
 security = HTTPBasic()
 
 # WebDAV XML Namespace.
@@ -27,7 +27,7 @@ async def get_current_user(
     credentials: Annotated[HTTPBasicCredentials, Depends(security)],
     auth_service: AuthService = Depends(get_auth_service),
 ) -> User:
-    user = await auth_service.authenticate_user_basic(
+    user = await auth_service.authenticate_basic(
         credentials.username, credentials.password
     )
     if not user:
@@ -147,7 +147,7 @@ async def webdav_put(
     storage = get_storage_service(request)
     driver = storage.get_driver(path)
     try:
-        await driver.write_stream(path, request.stream())
+        await driver.write(path, request.stream())
         return Response(status_code=201)
     except Exception as error:
         return Response(status_code=500, content=str(error))

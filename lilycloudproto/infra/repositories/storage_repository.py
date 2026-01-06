@@ -2,7 +2,7 @@ from sqlalchemy import asc, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from lilycloudproto.domain.entities.storage import Storage
-from lilycloudproto.domain.values.storage import (
+from lilycloudproto.domain.values.admin.storage import (
     ListArgs,
     SortBy,
     SortOrder,

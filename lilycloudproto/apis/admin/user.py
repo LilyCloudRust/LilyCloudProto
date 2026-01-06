@@ -2,14 +2,14 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from lilycloudproto.database import get_db
 from lilycloudproto.dependencies import get_auth_service
 from lilycloudproto.domain.entities.user import User
-from lilycloudproto.domain.values.user import ListArgs
+from lilycloudproto.domain.values.admin.user import ListArgs
 from lilycloudproto.error import ConflictError, NotFoundError
+from lilycloudproto.infra.database import get_db
 from lilycloudproto.infra.repositories.user_repository import UserRepository
 from lilycloudproto.infra.services.auth_service import AuthService
-from lilycloudproto.models.user import (
+from lilycloudproto.models.admin.user import (
     MessageResponse,
     UserCreate,
     UserListQuery,
@@ -25,10 +25,15 @@ router = APIRouter(prefix="/api/admin/users", tags=["Admin/Users"])
 async def create_user(
     data: UserCreate,
     db: AsyncSession = Depends(get_db),
+    auth_service: AuthService = Depends(get_auth_service),
 ) -> UserResponse:
     """Create a new user."""
     repo = UserRepository(db)
-    user = User(username=data.username, hashed_password=data.password)
+    user = User(
+        username=data.username,
+        hashed_password=auth_service.password_hash.hash(data.password),
+        role=data.role,
+    )
     # Check for duplicate username.
     try:
         created = await repo.create(user)
@@ -59,6 +64,7 @@ async def list_users(
     repo = UserRepository(db)
     args = ListArgs(
         keyword=query.keyword,
+        role=query.role,
         sort_by=query.sort_by,
         sort_order=query.sort_order,
         page=query.page,
@@ -92,6 +98,8 @@ async def update_user(
         user.username = data.username
     if data.password is not None:
         user.hashed_password = auth_service.password_hash.hash(data.password)
+    if data.role is not None:
+        user.role = data.role
     # Check for duplicate username.
     try:
         updated = await repo.update(user)

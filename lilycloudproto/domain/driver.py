@@ -1,12 +1,33 @@
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator, Awaitable, Callable
+from enum import Enum
 
+from lilycloudproto.domain.entities.storage import Storage
 from lilycloudproto.domain.values.files.file import File
 from lilycloudproto.domain.values.files.list import ListArgs
 from lilycloudproto.domain.values.files.search import SearchArgs
 
 
+class Base(str, Enum):
+    REGULAR = "regular"
+    TRASH = "trash"
+    SHARE = "share"
+
+
 class Driver(ABC):
+    storage: Storage
+    base: Base
+    share_path: str | None
+
+    def __init__(
+        self, storage: Storage, base: Base = Base.REGULAR, share_path: str | None = None
+    ):
+        self.storage = storage
+        self.base = base
+        if base == Base.SHARE and share_path is None:
+            raise ValueError("share_path must be provided when base is SHARE.")
+        self.share_path = share_path
+
     @abstractmethod
     def list_dir(self, args: ListArgs) -> list[File]:
         pass
@@ -41,9 +62,6 @@ class Driver(ABC):
         file_names: list[str],
         progress_callback: Callable[[int, int], Awaitable[None]] | None = None,
     ) -> None:
-        """
-        Batch move files into a destination directory (keeping original filenames).
-        """
         pass
 
     @abstractmethod
@@ -56,14 +74,11 @@ class Driver(ABC):
         pass
 
     @abstractmethod
-    def read(self, path: str, chunk_size: int = 1024 * 64) -> AsyncGenerator[bytes]:
+    async def write(self, path: str, content_stream: AsyncGenerator[bytes]) -> None:
         pass
 
     @abstractmethod
-    async def write(self, path: str, content: bytes) -> None:
-        """
-        Write all bytes to a file at once.
-        """
+    def read(self, path: str, chunk_size: int = 1024 * 64) -> AsyncGenerator[bytes]:
         pass
 
     @abstractmethod
@@ -72,18 +87,22 @@ class Driver(ABC):
 
     @abstractmethod
     async def rename(self, src_path: str, dst_path: str) -> None:
-        """
-        Rename or move a file/directory from src_path to dst_path.
-        Crucial for WebDAV MOVE operations which often involve renaming.
-        """
         pass
 
     @abstractmethod
-    async def write_stream(
-        self, path: str, content_stream: AsyncGenerator[bytes]
+    async def trash(
+        self,
+        dir: str,
+        file_names: list[str],
+        progress_callback: Callable[[int, int], Awaitable[None]] | None = None,
     ) -> None:
-        """
-        Write to a file using an async generator stream.
-        Crucial for WebDAV PUT operations with large files to avoid memory exhaustion.
-        """
+        pass
+
+    @abstractmethod
+    async def restore(
+        self,
+        src_paths: list[str],
+        dst_paths: list[str],
+        progress_callback: Callable[[int, int], Awaitable[None]] | None = None,
+    ) -> None:
         pass

@@ -26,4 +26,9 @@ async def get_db() -> AsyncGenerator[AsyncSession]:
 
 async def init_db() -> None:
     async with engine.begin() as conn:
+        # Ensure shares table is created before tokens due to foreign key dependency.
+        from lilycloudproto.domain.entities import (  # noqa: PLC0415
+            share,  # pyright: ignore[reportUnusedImport]  # noqa: F401
+        )
+
         await conn.run_sync(Base.metadata.create_all)

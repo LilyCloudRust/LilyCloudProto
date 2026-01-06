@@ -1,4 +1,6 @@
-from pydantic import BaseModel
+from typing import ClassVar
+
+from pydantic import BaseModel, ConfigDict
 
 
 class LoginRequest(BaseModel):
@@ -9,6 +11,13 @@ class LoginRequest(BaseModel):
 class RegisterRequest(BaseModel):
     username: str
     password: str
+
+
+class UserAuthResponse(BaseModel):
+    user_id: int
+    username: str
+
+    model_config: ClassVar[ConfigDict] = {"from_attributes": True}
 
 
 class RefreshRequest(BaseModel):

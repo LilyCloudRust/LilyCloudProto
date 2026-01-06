@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from lilycloudproto.domain.entities.task import Task
-from lilycloudproto.domain.values.task import TaskStatus, TaskType
+from lilycloudproto.domain.values.admin.task import TaskStatus, TaskType
 from lilycloudproto.infra.repositories.task_repository import TaskRepository
 from lilycloudproto.infra.services.storage_service import StorageService
 from lilycloudproto.infra.services.task_worker import TaskWorker
