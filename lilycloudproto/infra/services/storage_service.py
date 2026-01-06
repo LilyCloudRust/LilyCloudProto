@@ -99,6 +99,8 @@ class StorageService:
 
         if storage.type == StorageType.LOCAL:
             return LocalDriver(storage, base)
+        elif storage.type == StorageType.S3:
+            return S3Driver(storage, base)
 
         # Add other drivers here (S3, SMB, etc.)
         raise NotImplementedError(f"Driver for type '{storage.type}' not implemented.")
