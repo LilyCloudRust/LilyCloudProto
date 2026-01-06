@@ -118,9 +118,6 @@ class TransferService:
         if url:
             return DownloadResource("url", url, filename)
 
-        real_path = self.storage_service.get_physical_path(virtual_path)
-        if real_path and os.path.exists(real_path):
-            return DownloadResource("path", real_path, filename)
         return DownloadResource("stream", self.driver.read(virtual_path), filename)
 
     async def archive_stream_generator(self, task_id: int) -> AsyncGenerator[bytes]:

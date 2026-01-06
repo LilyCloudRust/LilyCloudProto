@@ -41,6 +41,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         # Create TaskService singleton.
         task_service = TaskService(AsyncSessionLocal, storage_service)
         app.state.task_service = task_service
+        await storage_service.initialize()
 
         # Create AuthService singleton.
         auth_settings = AuthSettings()

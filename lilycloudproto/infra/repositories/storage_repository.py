@@ -29,6 +29,11 @@ class StorageRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_all(self) -> list[Storage]:
+        """Retrieve all storage configurations."""
+        result = await self.db.execute(select(Storage))
+        return list(result.scalars().all())
+
     async def search(
         self,
         args: ListArgs,
