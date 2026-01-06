@@ -2,8 +2,11 @@ from typing import Annotated
 
 from fastapi import Depends, Request
 from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from lilycloudproto.config import auth_settings
 from lilycloudproto.domain.entities.user import User
+from lilycloudproto.infra.database import get_db
 from lilycloudproto.infra.services.auth_service import AuthService
 from lilycloudproto.infra.services.storage_service import StorageService
 from lilycloudproto.infra.services.task_service import TaskService
@@ -11,15 +14,9 @@ from lilycloudproto.infra.services.task_service import TaskService
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
 
-def get_auth_service(request: Request) -> AuthService:
-    service = getattr(
-        request.app.state,  # pyright: ignore[reportAny]
-        "auth_service",
-        None,
-    )
-    if not isinstance(service, AuthService):
-        raise RuntimeError("AuthService is not initialized on app.state.")
-    return service
+def get_auth_service(db: AsyncSession = Depends(get_db)) -> AuthService:
+    # Create AuthService per request with shared session.
+    return AuthService(auth_settings, db)
 
 
 def get_storage_service(request: Request) -> StorageService:

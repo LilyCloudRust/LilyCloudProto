@@ -67,6 +67,9 @@ async def get_share(
     share_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    auth_service: AuthService = Depends(  # pyright: ignore[reportUnusedParameter]
+        get_auth_service
+    ),
 ) -> ShareResponse:
     """Get share link details by ID."""
     repo = ShareRepository(db)
@@ -75,7 +78,7 @@ async def get_share(
     if not share:
         raise NotFoundError("Share not found.")
 
-    if share.user_id != current_user.user_id:
+    if current_user.role != Role.ADMIN and share.user_id != current_user.user_id:
         raise NotFoundError("Share not found.")
 
     return ShareResponse.from_entity(share)
@@ -157,6 +160,9 @@ async def delete_share(
     share_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    auth_service: AuthService = Depends(  # pyright: ignore[reportUnusedParameter]
+        get_auth_service
+    ),
 ) -> MessageResponse:
     """Delete a share link by ID."""
     repo = ShareRepository(db)
