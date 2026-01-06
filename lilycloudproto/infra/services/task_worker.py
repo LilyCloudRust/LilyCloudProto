@@ -176,7 +176,10 @@ class TaskWorker:
             now = datetime.now(UTC)
             trash_entries: list[Trash] = []
             for name in task.file_names:
-                file_info = driver.info(name)
+                try:
+                    file_info = driver.info(name)
+                except NotFoundError:
+                    continue
                 trash_entry = Trash(
                     user_id=task.user_id,
                     entry_name=file_info.name,
