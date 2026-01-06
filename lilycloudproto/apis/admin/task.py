@@ -25,14 +25,15 @@ router = APIRouter(prefix="/api/admin/tasks", tags=["Admin/Tasks"])
 @router.post("", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
 async def create_task(
     data: TaskCreate,
-    current_user: Annotated[User, Depends(get_current_user)],
+    user: Annotated[User, Depends(get_current_user)],
     db: AsyncSession = Depends(get_db),
 ) -> TaskResponse:
     """Create a new task manually."""
     repo = TaskRepository(db)
     task = Task(
-        user_id=current_user.user_id,
+        user_id=user.user_id,
         type=data.type,
+        base=data.base,
         src_dir=data.src_dir,
         dst_dirs=data.dst_dirs,
         file_names=data.file_names,
@@ -56,6 +57,7 @@ async def list_tasks(
         user_id=params.user_id,
         type=params.type,
         status=params.status,
+        base=params.base,
         sort_by=params.sort_by,
         sort_order=params.sort_order,
         page=params.page,
@@ -87,6 +89,8 @@ async def update_task(
         task.user_id = data.user_id
     if data.type is not None:
         task.type = data.type
+    if data.base is not None:
+        task.base = data.base
     if data.src_dir is not None:
         task.src_dir = data.src_dir
     if data.dst_dirs is not None:

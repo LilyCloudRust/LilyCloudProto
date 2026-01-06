@@ -53,6 +53,7 @@ class LocalDriver(Driver):
     def list_dir(self, args: ListArgs) -> list[File]:
         files: list[File] = []
         physical_path = self._get_physical_path(args.path)
+        print(physical_path)
         self._validate_directory(physical_path)
 
         for entry in os.scandir(physical_path):
@@ -341,6 +342,17 @@ class LocalDriver(Driver):
 
     def _get_physical_path(self, logical_path: str) -> str:
         logical_path = logical_path.lstrip("/\\")
+
+        # Get the mount_path prefix from storage and normalize it
+        mount_path = self.storage.mount_path.lstrip("/\\")
+
+        # Strip the mount_path prefix from logical_path if it exists
+        if mount_path and (
+            logical_path.startswith(f"{mount_path}/") or logical_path == mount_path
+        ):
+            # Remove the mount_path prefix
+            logical_path = logical_path[len(mount_path) :].lstrip("/\\")
+
         if self.base == Base.REGULAR:
             root = self.root_path
         elif self.base == Base.TRASH:

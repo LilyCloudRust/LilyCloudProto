@@ -50,6 +50,11 @@ class TrashRepository:
         )
         return list(result.scalars().all())
 
+    async def get_by_user_id(self, user_id: int) -> list[Trash]:
+        """Retrieve all trash entries for a specific user."""
+        result = await self.db.execute(select(Trash).where(Trash.user_id == user_id))
+        return list(result.scalars().all())
+
     async def search(self, args: ListArgs) -> list[Trash]:
         statement = select(Trash)
 

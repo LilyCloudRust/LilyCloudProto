@@ -3,11 +3,13 @@ from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from lilycloudproto.dependencies import get_storage_service
 from lilycloudproto.domain.entities.storage import Storage
 from lilycloudproto.domain.values.admin.storage import ListArgs, validate_config
 from lilycloudproto.error import ConflictError, NotFoundError, UnprocessableEntityError
 from lilycloudproto.infra.database import get_db
 from lilycloudproto.infra.repositories.storage_repository import StorageRepository
+from lilycloudproto.infra.services.storage_service import StorageService
 from lilycloudproto.models.admin.storage import (
     MessageResponse,
     StorageCreate,
@@ -24,6 +26,7 @@ router = APIRouter(prefix="/api/admin/storages", tags=["Admin/Storages"])
 async def create_storage(
     data: StorageCreate,
     db: AsyncSession = Depends(get_db),
+    storage_service: StorageService = Depends(get_storage_service),
 ) -> StorageResponse:
     """Create a new storage configuration."""
     # Validate the configuration based on the storage type.
@@ -43,6 +46,7 @@ async def create_storage(
     )
     try:
         created = await repo.create(storage)
+        storage_service.update_cache(created)
     except IntegrityError as error:
         raise ConflictError(
             f"Storage with mount path '{data.mount_path}' already exists."
@@ -96,12 +100,14 @@ async def update_storage(
     storage_id: int,
     data: StorageUpdate,
     db: AsyncSession = Depends(get_db),
+    storage_service: StorageService = Depends(get_storage_service),
 ) -> StorageResponse:
     """Update storage configuration."""
     repo = StorageRepository(db)
     storage = await repo.get_by_id(storage_id)
     if not storage:
         raise NotFoundError(f"Storage with ID '{storage_id}' not found.")
+    old_mount_path = storage.mount_path
 
     # Validate new state.
     type = data.type if data.type is not None else storage.type
@@ -122,6 +128,11 @@ async def update_storage(
         storage.enabled = data.enabled
 
     updated = await repo.update(storage)
+
+    if old_mount_path != updated.mount_path:
+        storage_service.remove_from_cache(old_mount_path)
+    storage_service.update_cache(updated)
+
     return StorageResponse.model_validate(updated)
 
 
@@ -129,6 +140,7 @@ async def update_storage(
 async def delete_storage(
     storage_id: int,
     db: AsyncSession = Depends(get_db),
+    storage_service: StorageService = Depends(get_storage_service),
 ) -> MessageResponse:
     """Delete a storage configuration."""
     repo = StorageRepository(db)
@@ -136,4 +148,5 @@ async def delete_storage(
     if not storage:
         raise NotFoundError(f"Storage with ID '{storage_id}' not found.")
     await repo.delete(storage)
+    storage_service.remove_from_cache(storage.mount_path)  # <--- Update Cache
     return MessageResponse(message="Storage deleted successfully.")

@@ -4,6 +4,7 @@ from sqlalchemy import JSON, DateTime, Enum, Float, ForeignKey, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
+from lilycloudproto.domain.driver import Base as DriverBase
 from lilycloudproto.domain.values.admin.task import TaskStatus, TaskType
 from lilycloudproto.infra.database import Base
 
@@ -16,6 +17,9 @@ class Task(Base):
         Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False
     )
     type: Mapped[TaskType] = mapped_column(Enum(TaskType), nullable=False)
+    base: Mapped[DriverBase] = mapped_column(
+        Enum(DriverBase), nullable=False, default=DriverBase.REGULAR
+    )
     src_dir: Mapped[str | None] = mapped_column(Text, nullable=True)
     dst_dirs: Mapped[list[str]] = mapped_column(JSON, nullable=False)
     file_names: Mapped[list[str]] = mapped_column(JSON, nullable=False)

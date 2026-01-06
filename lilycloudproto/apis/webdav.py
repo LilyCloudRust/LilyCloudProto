@@ -1,5 +1,6 @@
 import os
 import urllib.parse
+from datetime import UTC, datetime
 from email.utils import format_datetime
 from typing import Annotated
 from xml.etree.ElementTree import Element, SubElement, tostring
@@ -25,11 +26,9 @@ WEBDAV_NS = "DAV:"
 
 async def get_current_user(
     credentials: Annotated[HTTPBasicCredentials, Depends(security)],
-    auth_service: AuthService = Depends(get_auth_service),
+    service: AuthService = Depends(get_auth_service),
 ) -> User:
-    user = await auth_service.authenticate_basic(
-        credentials.username, credentials.password
-    )
+    user = await service.authenticate_basic(credentials.username, credentials.password)
     if not user:
         raise Exception("Unauthorized")
     return user
@@ -84,31 +83,60 @@ async def webdav_propfind(
     depth: Annotated[str | None, Header()] = "1",
 ) -> Response:
     storage = get_storage_service(request)
-    real_path = path if path else "."
+    real_path = path if path else "/"
 
-    driver = storage.get_driver(real_path)
-
-    try:
-        current_file = driver.info(real_path)
-    except NotFoundError:
-        return Response(status_code=404)
+    # Normalize root path variations
+    is_root = real_path in ("/", "", ".")
 
     multistatus = Element(f"{{{WEBDAV_NS}}}multistatus")
     multistatus.set("xmlns:D", WEBDAV_NS)
-    multistatus.append(create_prop_response(current_file, str(request.base_url)))
 
-    if current_file.type == Type.DIRECTORY and depth != "0":
-        try:
-            args = ListArgs(
-                path=real_path,
-                sort_by=SortBy.NAME,
-                sort_order=SortOrder.ASC,
-            )
-            children = driver.list_dir(args)
-            for child in children:
+    # Handle root directory specially
+    if is_root:
+        # Create synthetic root directory File object
+
+        root_file = File(
+            name="/",
+            path="/",
+            type=Type.DIRECTORY,
+            size=0,
+            mime_type="inode/directory",
+            created_at=datetime.now(UTC),
+            modified_at=datetime.now(UTC),
+            accessed_at=datetime.now(UTC),
+        )
+        multistatus.append(create_prop_response(root_file, str(request.base_url)))
+
+        # List mounted storages as children if depth != "0"
+        if depth != "0":
+            mounted_storages = storage.list_mounted_storages(enabled_only=True)
+            for child in mounted_storages:
                 multistatus.append(create_prop_response(child, str(request.base_url)))
-        except Exception:
-            pass
+    else:
+        # Normal path handling
+        driver = storage.get_driver(real_path)
+
+        try:
+            current_file = driver.info(real_path)
+        except NotFoundError:
+            return Response(status_code=404)
+
+        multistatus.append(create_prop_response(current_file, str(request.base_url)))
+
+        if current_file.type == Type.DIRECTORY and depth != "0":
+            try:
+                args = ListArgs(
+                    path=real_path,
+                    sort_by=SortBy.NAME,
+                    sort_order=SortOrder.ASC,
+                )
+                children = driver.list_dir(args)
+                for child in children:
+                    multistatus.append(
+                        create_prop_response(child, str(request.base_url))
+                    )
+            except Exception:
+                pass
 
     xml_str = tostring(  # pyright: ignore[reportAny]
         multistatus, encoding="utf-8", xml_declaration=True

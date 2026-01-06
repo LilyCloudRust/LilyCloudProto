@@ -30,9 +30,9 @@ router = APIRouter(prefix="/api/shares", tags=["Shares"])
 @router.post("", response_model=ShareResponse, status_code=status.HTTP_201_CREATED)
 async def create_share(
     data: ShareCreate,
-    current_user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    auth_service: AuthService = Depends(get_auth_service),
+    service: AuthService = Depends(get_auth_service),
 ) -> ShareResponse:
     """Create a new share link."""
     repo = ShareRepository(db)
@@ -40,13 +40,13 @@ async def create_share(
     # Hash the password if provided.
     hashed_password = None
     if data.password:
-        hashed_password = auth_service.password_hash.hash(data.password)
+        hashed_password = service.password_hash.hash(data.password)
 
     # Generate a unique token (using UUID-like string).
     token = str(uuid.uuid4())
 
     share = Share(
-        user_id=current_user.user_id,
+        user_id=user.user_id,
         token=token,
         base_dir=data.base_dir,
         file_names=data.file_names,
@@ -65,11 +65,8 @@ async def create_share(
 @router.get("/{share_id}", response_model=ShareResponse)
 async def get_share(
     share_id: int,
-    current_user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    auth_service: AuthService = Depends(  # pyright: ignore[reportUnusedParameter]
-        get_auth_service
-    ),
 ) -> ShareResponse:
     """Get share link details by ID."""
     repo = ShareRepository(db)
@@ -78,7 +75,7 @@ async def get_share(
     if not share:
         raise NotFoundError("Share not found.")
 
-    if current_user.role != Role.ADMIN and share.user_id != current_user.user_id:
+    if user.role != Role.ADMIN and share.user_id != user.user_id:
         raise NotFoundError("Share not found.")
 
     return ShareResponse.from_entity(share)
@@ -87,13 +84,13 @@ async def get_share(
 @router.get("", response_model=ShareListResponse)
 async def list_shares(
     query: ShareListQuery = Depends(),
-    current_user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> ShareListResponse:
     """List share links with pagination and filtering."""
     repo = ShareRepository(db)
 
-    if current_user.role != Role.ADMIN and query.user_id != current_user.user_id:
+    if user.role != Role.ADMIN and query.user_id != user.user_id:
         raise NotFoundError("Share links not found.")
 
     list_args = ListArgs(
@@ -122,9 +119,9 @@ async def list_shares(
 async def update_share(
     share_id: int,
     data: ShareUpdate,
-    current_user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    auth_service: AuthService = Depends(get_auth_service),
+    service: AuthService = Depends(get_auth_service),
 ) -> ShareResponse:
     """Update a share link by ID."""
     repo = ShareRepository(db)
@@ -133,7 +130,7 @@ async def update_share(
     if not share:
         raise NotFoundError("Share link not found.")
 
-    if share.user_id != current_user.user_id:
+    if user.role != Role.ADMIN and share.user_id != user.user_id:
         raise NotFoundError("Share link not found.")
 
     # Update fields if provided.
@@ -148,7 +145,7 @@ async def update_share(
     if data.password is not None:
         # Hash the password if provided.
         share.hashed_password = (
-            auth_service.password_hash.hash(data.password) if data.password else None
+            service.password_hash.hash(data.password) if data.password else None
         )
 
     updated_share = await repo.update(share)
@@ -158,9 +155,9 @@ async def update_share(
 @router.delete("/{share_id}", response_model=MessageResponse)
 async def delete_share(
     share_id: int,
-    current_user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    auth_service: AuthService = Depends(  # pyright: ignore[reportUnusedParameter]
+    service: AuthService = Depends(  # pyright: ignore[reportUnusedParameter]
         get_auth_service
     ),
 ) -> MessageResponse:
@@ -171,7 +168,7 @@ async def delete_share(
     if not share:
         raise NotFoundError("Share link not found.")
 
-    if share.user_id != current_user.user_id:
+    if user.role != Role.ADMIN and share.user_id != user.user_id:
         raise NotFoundError("Share link not found.")
 
     await repo.delete(share)

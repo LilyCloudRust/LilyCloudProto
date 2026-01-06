@@ -124,8 +124,8 @@ class TaskWorker:
             raise BadRequestError(
                 f"Source directory is required for COPY task '{task.task_id}'."
             )
-        src_dir = self.storage_service.get_physical_path(task.src_dir)
-        dst_dirs = self.storage_service.get_physical_paths(task.dst_dirs)
+        src_dir = task.src_dir
+        dst_dirs = task.dst_dirs
         await driver.copy(src_dir, dst_dirs[0], task.file_names, progress_callback)
 
     async def _handle_move(
@@ -138,8 +138,8 @@ class TaskWorker:
             raise BadRequestError(
                 f"Source directory is required for MOVE task '{task.task_id}'."
             )
-        src_dir = self.storage_service.get_physical_path(task.src_dir)
-        dst_dirs = self.storage_service.get_physical_paths(task.dst_dirs)
+        src_dir = task.src_dir
+        dst_dirs = task.dst_dirs
         await driver.move(src_dir, dst_dirs[0], task.file_names, progress_callback)
 
     async def _handle_delete(
@@ -154,8 +154,7 @@ class TaskWorker:
             raise BadRequestError(
                 f"Source directory is required for DELETE task '{task.task_id}'."
             )
-        src_dir = self.storage_service.get_physical_path(task.src_dir)
-        await driver.delete(src_dir, task.file_names, progress_callback)
+        await driver.delete(task.src_dir, task.file_names, progress_callback)
 
     async def _handle_trash(
         self,

@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from enum import Enum
 
+from lilycloudproto.domain.driver import Base
+
 
 class TaskType(str, Enum):
     COPY = "copy"
@@ -41,6 +43,7 @@ class ListArgs:
     user_id: int | None
     type: TaskType | None
     status: TaskStatus | None
+    base: Base | None
     sort_by: SortBy
     sort_order: SortOrder
     page: int = 1

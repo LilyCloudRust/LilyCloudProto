@@ -123,6 +123,6 @@ async def logout(
 
 @router.get("/whoami", response_model=UserAuthResponse)
 async def whoami(
-    current_user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ) -> UserAuthResponse:
-    return UserAuthResponse.model_validate(current_user)
+    return UserAuthResponse.model_validate(user)

@@ -44,6 +44,8 @@ class TaskRepository:
             statement = statement.where(Task.status == args.status)
         if args.type:
             statement = statement.where(Task.type == args.type)
+        if args.base:
+            statement = statement.where(Task.base == args.base)
 
         field_map = {
             SortBy.CREATED_AT: Task.created_at,
@@ -87,6 +89,8 @@ class TaskRepository:
             statement = statement.where(Task.status == args.status)
         if args.type:
             statement = statement.where(Task.type == args.type)
+        if args.base:
+            statement = statement.where(Task.base == args.base)
 
         result = await self.db.execute(statement)
         return result.scalar_one() or 0
