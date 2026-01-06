@@ -25,13 +25,13 @@ router = APIRouter(prefix="/api/admin/users", tags=["Admin/Users"])
 async def create_user(
     data: UserCreate,
     db: AsyncSession = Depends(get_db),
-    auth_service: AuthService = Depends(get_auth_service),
+    service: AuthService = Depends(get_auth_service),
 ) -> UserResponse:
     """Create a new user."""
     repo = UserRepository(db)
     user = User(
         username=data.username,
-        hashed_password=auth_service.password_hash.hash(data.password),
+        hashed_password=service.password_hash.hash(data.password),
         role=data.role,
     )
     # Check for duplicate username.
@@ -87,7 +87,7 @@ async def update_user(
     user_id: int,
     data: UserUpdate,
     db: AsyncSession = Depends(get_db),
-    auth_service: AuthService = Depends(get_auth_service),
+    service: AuthService = Depends(get_auth_service),
 ) -> UserResponse:
     """Update user details."""
     repo = UserRepository(db)
@@ -97,7 +97,7 @@ async def update_user(
     if data.username is not None:
         user.username = data.username
     if data.password is not None:
-        user.hashed_password = auth_service.password_hash.hash(data.password)
+        user.hashed_password = service.password_hash.hash(data.password)
     if data.role is not None:
         user.role = data.role
     # Check for duplicate username.

@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Body, Depends, Path
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from lilycloudproto.dependencies import get_task_service
+from lilycloudproto.dependencies import get_current_user, get_task_service
+from lilycloudproto.domain.entities.user import User
 from lilycloudproto.domain.values.admin.task import TaskType
+from lilycloudproto.domain.values.admin.user import Role
 from lilycloudproto.domain.values.trash import ListArgs
 from lilycloudproto.error import NotFoundError
 from lilycloudproto.infra.database import get_db
@@ -24,10 +26,11 @@ router = APIRouter(prefix="/api/files/trash", tags=["Files/Trash"])
 @router.post("", response_model=TaskResponse)
 async def trash(
     command: TrashCommand,
+    user: User = Depends(get_current_user),
     task_service: TaskService = Depends(get_task_service),
 ) -> TaskResponse:
     task = await task_service.add_task(
-        user_id=0,
+        user_id=user.user_id,
         type=TaskType.TRASH,
         src_dir=command.dir,
         dst_dirs=[],
@@ -39,11 +42,14 @@ async def trash(
 @router.get("/{trash_id}", response_model=TrashResponse)
 async def get_trash_entry(
     trash_id: int = Path(..., description="Trash entry ID"),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> TrashResponse:
     repo = TrashRepository(db)
     trash_entry = await repo.get_by_id(trash_id)
     if not trash_entry:
+        raise NotFoundError(f"Trash entry with ID '{trash_id}' not found.")
+    if user.role != Role.ADMIN and trash_entry.user_id != user.user_id:
         raise NotFoundError(f"Trash entry with ID '{trash_id}' not found.")
     return TrashResponse.model_validate(trash_entry)
 
@@ -51,6 +57,7 @@ async def get_trash_entry(
 @router.get("", response_model=TrashListResponse)
 async def list_trash_entries(
     query: TrashListQuery = Depends(),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> TrashListResponse:
     repo = TrashRepository(db)
@@ -123,7 +130,34 @@ async def restore(
 @router.delete("", response_model=TaskResponse)
 async def delete(
     command: DeleteCommand = Body(...),
-    # user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+    task_service: TaskService = Depends(get_task_service),
 ) -> TaskResponse:
-    # TODO: Implement logic to create delete task and return TaskResponse
+    repo = TrashRepository(db)
+    user_id = user.user_id
+
+    if command.empty:
+        # Get all trash entries for the user.
+        trash_entries = await repo.get_by_user_id(user.user_id)
+        if not trash_entries:
+            raise NotFoundError("Trash is already empty.")
+        file_names = [entry.entry_name for entry in trash_entries]
+        src_dir = "/"  # Logical trash root
+
+        # Create delete task
+        task = await task_service.add_task(
+            user_id=user_id,
+            type=TaskType.DELETE,
+            src_dir=src_dir,
+            dst_dirs=[],
+            file_names=file_names,
+        )
+
+        # Clear trash entries table for the user
+        for entry in trash_entries:
+            await repo.delete(entry)
+
+        return TaskResponse.model_validate(task)
+
     raise NotImplementedError

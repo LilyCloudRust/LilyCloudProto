@@ -25,11 +25,9 @@ WEBDAV_NS = "DAV:"
 
 async def get_current_user(
     credentials: Annotated[HTTPBasicCredentials, Depends(security)],
-    auth_service: AuthService = Depends(get_auth_service),
+    service: AuthService = Depends(get_auth_service),
 ) -> User:
-    user = await auth_service.authenticate_basic(
-        credentials.username, credentials.password
-    )
+    user = await service.authenticate_basic(credentials.username, credentials.password)
     if not user:
         raise Exception("Unauthorized")
     return user
