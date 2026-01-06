@@ -3,6 +3,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from lilycloudproto.domain.driver import Base
 from lilycloudproto.domain.values.admin.task import (
     SortBy,
     SortOrder,
@@ -13,6 +14,7 @@ from lilycloudproto.domain.values.admin.task import (
 
 class TaskCreate(BaseModel):
     type: TaskType
+    base: Base = Base.REGULAR
     src_dir: str | None = None
     dst_dirs: list[str] = []
     file_names: list[str] = []
@@ -24,6 +26,7 @@ class TaskCreate(BaseModel):
 class TaskUpdate(BaseModel):
     user_id: int | None = None
     type: TaskType | None = None
+    base: Base | None = None
     src_dir: str | None = None
     dst_dirs: list[str] | None = None
     file_names: list[str] | None = None
@@ -37,11 +40,12 @@ class TaskUpdate(BaseModel):
 class TaskResponse(BaseModel):
     task_id: int
     user_id: int
-    type: str
+    type: TaskType
+    base: Base
     src_dir: str | None
     dst_dirs: list[str]
     file_names: list[str]
-    status: str
+    status: TaskStatus
     progress: float
     message: str | None
     created_at: datetime
@@ -64,6 +68,7 @@ class TaskListQuery(BaseModel):
     user_id: int | None = Field(None)
     type: TaskType | None = Field(None)
     status: TaskStatus | None = Field(None)
+    base: Base | None = Field(None)
     sort_by: SortBy = Field(SortBy.CREATED_AT)
     sort_order: SortOrder = Field(SortOrder.DESC)
     page: int = Field(1, ge=1)

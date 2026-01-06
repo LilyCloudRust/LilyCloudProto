@@ -33,6 +33,7 @@ async def create_task(
     task = Task(
         user_id=user.user_id,
         type=data.type,
+        base=data.base,
         src_dir=data.src_dir,
         dst_dirs=data.dst_dirs,
         file_names=data.file_names,
@@ -56,6 +57,7 @@ async def list_tasks(
         user_id=params.user_id,
         type=params.type,
         status=params.status,
+        base=params.base,
         sort_by=params.sort_by,
         sort_order=params.sort_order,
         page=params.page,
@@ -87,6 +89,8 @@ async def update_task(
         task.user_id = data.user_id
     if data.type is not None:
         task.type = data.type
+    if data.base is not None:
+        task.base = data.base
     if data.src_dir is not None:
         task.src_dir = data.src_dir
     if data.dst_dirs is not None:
