@@ -133,7 +133,7 @@ async def update_share(
     if not share:
         raise NotFoundError("Share link not found.")
 
-    if share.user_id != current_user.user_id:
+    if current_user.role != Role.ADMIN and share.user_id != current_user.user_id:
         raise NotFoundError("Share link not found.")
 
     # Update fields if provided.
@@ -171,7 +171,7 @@ async def delete_share(
     if not share:
         raise NotFoundError("Share link not found.")
 
-    if share.user_id != current_user.user_id:
+    if current_user.role != Role.ADMIN and share.user_id != current_user.user_id:
         raise NotFoundError("Share link not found.")
 
     await repo.delete(share)
