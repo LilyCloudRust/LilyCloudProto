@@ -21,7 +21,6 @@ from lilycloudproto.config import AuthSettings
 from lilycloudproto.error import TeapotError, register_error_handlers
 from lilycloudproto.infra.database import AsyncSessionLocal, init_db
 from lilycloudproto.infra.repositories.storage_repository import StorageRepository
-from lilycloudproto.infra.repositories.task_repository import TaskRepository
 from lilycloudproto.infra.seed import seed_admin
 from lilycloudproto.infra.services.auth_service import AuthService
 from lilycloudproto.infra.services.storage_service import StorageService
@@ -40,8 +39,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         app.state.storage_service = storage_service
 
         # Create TaskService singleton.
-        task_repo = TaskRepository(session)
-        task_service = TaskService(task_repo, AsyncSessionLocal, storage_service)
+        task_service = TaskService(AsyncSessionLocal, storage_service)
         app.state.task_service = task_service
 
         # Create AuthService singleton.

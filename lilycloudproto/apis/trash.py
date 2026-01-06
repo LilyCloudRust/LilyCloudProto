@@ -57,7 +57,6 @@ async def get_trash_entry(
 @router.get("", response_model=TrashListResponse)
 async def list_trash_entries(
     query: TrashListQuery = Depends(),
-    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> TrashListResponse:
     repo = TrashRepository(db)
@@ -83,6 +82,7 @@ async def list_trash_entries(
 async def restore(
     command: RestoreCommand,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
     task_service: TaskService = Depends(get_task_service),
 ) -> TaskResponse:
     repo = TrashRepository(db)
@@ -92,7 +92,7 @@ async def restore(
         # If restoring from root trash directory, delete the trash entry after restore.
         delete_entry = True
         entry_names = command.file_names
-        trash_entries = await repo.get_by_entry_names(entry_names, 0)
+        trash_entries = await repo.get_by_entry_names(entry_names, user.user_id)
         if len(trash_entries) != len(entry_names):
             raise NotFoundError("One or more trash entries not found.")
         src_dir = "/"  # logical trash root.
@@ -101,7 +101,7 @@ async def restore(
     else:
         # Restore files in a single trash directory.
         entry_name = command.dir.strip("/").split("/")[0]
-        trash_entry = await repo.get_by_entry_name(entry_name, 0)
+        trash_entry = await repo.get_by_entry_name(entry_name, user.user_id)
         if not trash_entry:
             raise NotFoundError(f"Trash entry for '{entry_name}' not found.")
         src_dir = command.dir
@@ -112,11 +112,12 @@ async def restore(
 
     # Create restore task for the worker.
     task = await task_service.add_task(
-        user_id=0,
+        user_id=user.user_id,
         type=TaskType.RESTORE,
         src_dir=src_dir,
         dst_dirs=dst_dirs,
         file_names=file_names,
+        db=db,
     )
 
     # Optionally delete trash entries after restore.
@@ -145,16 +146,17 @@ async def delete(
         file_names = [entry.entry_name for entry in trash_entries]
         src_dir = "/"  # Logical trash root
 
-        # Create delete task
+        # Create delete task.
         task = await task_service.add_task(
             user_id=user_id,
             type=TaskType.DELETE,
             src_dir=src_dir,
             dst_dirs=[],
             file_names=file_names,
+            db=db,
         )
 
-        # Clear trash entries table for the user
+        # Clear trash entries table for the user.
         for entry in trash_entries:
             await repo.delete(entry)
 
