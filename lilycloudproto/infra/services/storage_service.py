@@ -5,6 +5,7 @@ from lilycloudproto.domain.entities.storage import Storage
 from lilycloudproto.domain.values.admin.storage import LocalConfig, StorageType
 from lilycloudproto.domain.values.files.file import File, Type
 from lilycloudproto.infra.drivers.local_driver import LocalDriver
+from lilycloudproto.infra.drivers.s3_driver import S3Driver
 from lilycloudproto.infra.repositories.storage_repository import StorageRepository
 
 

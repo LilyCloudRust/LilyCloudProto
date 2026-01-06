@@ -20,6 +20,10 @@ class S3Config(BaseModel):
     access_key: str
     secret_key: str
     region: str | None = None
+    session_token: str | None = None
+    prefix: str | None = None
+    use_path_style: bool = False
+    endpoint_region_override: str | None = None
 
 
 StorageConfig = LocalConfig | S3Config
